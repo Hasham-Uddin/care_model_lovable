@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* MEASURE Brand Colors - Official Brand Guidelines 2023 */
+    --background: 0 0% 100%;
+    --foreground: 235 100% 19%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 235 100% 19%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 235 100% 19%;
+
+    /* Primary: Dark Cornflower (MEASURE brand blue) */
+    --primary: 228 60% 37%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 228 60% 50%;
+
+    /* Secondary: Tiger's Eye (Energy, action orange) */
+    --secondary: 31 79% 58%;
+    --secondary-foreground: 235 100% 19%;
+
+    /* Muted: Soft neutrals */
+    --muted: 228 15% 96%;
+    --muted-foreground: 228 10% 45%;
+
+    /* Accent: Gargoyle Gas (Vibrant yellow) */
+    --accent: 47 94% 63%;
+    --accent-foreground: 235 100% 19%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 228 15% 90%;
+    --input: 228 15% 90%;
+    --ring: 228 60% 37%;
+
+    --radius: 0.75rem;
+
+    /* Gradients - MEASURE Brand */
+    --gradient-primary: linear-gradient(135deg, hsl(228 60% 37%), hsl(228 60% 50%));
+    --gradient-secondary: linear-gradient(135deg, hsl(31 79% 58%), hsl(31 79% 68%));
+    --gradient-accent: linear-gradient(135deg, hsl(47 94% 63%), hsl(47 94% 73%));
+    --gradient-hero: linear-gradient(135deg, hsl(228 60% 37%) 0%, hsl(235 100% 19%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(31 79% 58%) 0%, hsl(47 94% 63%) 100%);
+
+    /* Shadows - MEASURE Brand */
+    --shadow-card: 0 4px 6px -1px hsl(228 60% 37% / 0.1), 0 2px 4px -1px hsl(228 60% 37% / 0.06);
+    --shadow-elevated: 0 10px 15px -3px hsl(228 60% 37% / 0.15), 0 4px 6px -2px hsl(228 60% 37% / 0.1);
+    --shadow-glow: 0 0 20px hsl(228 60% 50% / 0.3);
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 235 100% 19%;
+    --sidebar-primary: 228 60% 37%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 228 15% 96%;
+    --sidebar-accent-foreground: 228 60% 37%;
+    --sidebar-border: 228 15% 90%;
+    --sidebar-ring: 228 60% 37%;
+  }
+
+  .dark {
+    /* MEASURE Dark Mode - Measure Blue background */
+    --background: 235 100% 19%;
+    --foreground: 0 0% 98%;
+
+    --card: 235 80% 25%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 235 80% 25%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 228 60% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 228 60% 60%;
+
+    --secondary: 31 79% 58%;
+    --secondary-foreground: 235 100% 19%;
+
+    --muted: 235 60% 30%;
+    --muted-foreground: 228 20% 70%;
+
+    --accent: 47 94% 63%;
+    --accent-foreground: 235 100% 19%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 235 60% 35%;
+    --input: 235 60% 35%;
+    --ring: 228 60% 50%;
+
+    --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -1px hsl(0 0% 0% / 0.3);
+    --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -2px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 30px hsl(228 60% 60% / 0.4);
+
+    --sidebar-background: 235 80% 25%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 228 60% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 235 60% 30%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 235 60% 35%;
+    --sidebar-ring: 228 60% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

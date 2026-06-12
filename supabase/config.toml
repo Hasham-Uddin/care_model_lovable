@@ -1,0 +1,25 @@
+project_id = "hnuyzpgtrxhnujzeznil"
+
+[functions.ai-assistant]
+verify_jwt = true
+
+[functions.generate-synthetic-data]
+verify_jwt = true
+
+[functions.generate-session-email]
+verify_jwt = true
+
+[functions.export-community-training-data]
+verify_jwt = true
+
+[functions.send-sales-inquiry]
+verify_jwt = false
+
+[functions.facilitator-coach]
+verify_jwt = false
+
+[functions.send-project-invitation]
+verify_jwt = true
+
+[functions.accept-invitation]
+verify_jwt = true
