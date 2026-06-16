@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 130" width="360" height="130">
+  <g fill="none" stroke="#111111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left profile -->
+    <path d="M95 108 C58 95 42 62 55 36 C66 14 98 6 118 24 C132 38 136 68 124 90 C115 104 106 110 95 108 Z"/>
+    <!-- Right profile -->
+    <path d="M265 108 C302 95 318 62 305 36 C294 14 262 6 242 24 C228 38 224 68 236 90 C245 104 254 110 265 108 Z"/>
+    <!-- Chaotic scribble -->
+    <path d="M72 48 C82 38 96 42 92 56 C88 68 74 66 68 54 C64 46 72 48 72 48 Z" fill="#111111" stroke="none"/>
+    <path d="M78 40 C90 36 98 48 88 54 M84 50 C96 44 100 58 90 62 M70 58 C80 52 86 64 76 68 M88 62 C78 70 66 64 72 54"/>
+    <!-- Thread to yarn ball -->
+    <path d="M118 54 C150 52 210 52 242 54"/>
+    <!-- Yarn ball -->
+    <circle cx="268" cy="54" r="20"/>
+    <ellipse cx="268" cy="54" rx="20" ry="20" fill="none"/>
+    <path d="M252 54 C260 44 276 44 284 54 C276 64 260 64 252 54 Z" fill="none"/>
+    <path d="M256 48 C268 42 280 48 282 56 M254 60 C266 66 280 60 284 50 M260 54 L276 54 M268 46 L268 62"/>
+  </g>
+</svg>

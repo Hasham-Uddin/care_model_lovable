@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 200" width="220" height="200">
+  <g fill="#ffffff" stroke="#222222" stroke-width="1.2">
+    <!-- Simplified Florida outline -->
+    <path d="M175 18 L188 28 L195 45 L198 70 L192 95 L185 120 L175 145 L160 165 L140 178 L115 185 L90 182 L68 170 L52 150 L42 125 L38 100 L40 75 L48 52 L62 35 L85 22 L110 15 L140 14 Z"/>
+    <!-- Northeast highlight: Putnam + St. Johns (red) -->
+    <path d="M158 42 L168 40 L172 52 L170 62 L162 68 L154 62 L152 50 Z" fill="#d62828" stroke="#222"/>
+    <path d="M170 38 L180 36 L184 48 L182 58 L174 60 L168 52 L166 42 Z" fill="#d62828" stroke="#222"/>
+    <!-- Southeast highlight (blue) -->
+    <path d="M168 148 L178 142 L184 152 L180 164 L170 168 L162 158 Z" fill="#2563eb" stroke="#222"/>
+  </g>
+</svg>

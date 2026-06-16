@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="720" height="400">
+  <defs>
+    <style>
+      .node-text { font-family: Montserrat, Arial, sans-serif; font-size: 8px; font-weight: 600; fill: #1a1a1a; text-anchor: middle; }
+      .node-text-sm { font-size: 7px; }
+    </style>
+  </defs>
+  <!-- Tree -->
+  <g fill="#5c3d1e">
+    <path d="M340 385 C332 350 328 295 332 235 C336 195 350 165 368 148 L372 385 Z"/>
+    <path d="M358 195 C318 168 275 148 225 128 L242 114 C288 128 322 142 356 160 Z"/>
+    <path d="M366 168 C398 135 438 115 485 100 L480 88 C435 102 398 122 362 150 Z"/>
+    <path d="M352 185 C305 162 255 152 205 158 L210 146 C258 139 308 149 354 172 Z"/>
+    <path d="M362 158 C388 125 418 108 455 100 L452 89 C416 97 386 115 358 143 Z"/>
+    <path d="M348 205 C298 195 248 200 198 215 L202 204 C250 189 298 184 346 194 Z"/>
+    <path d="M370 148 C405 118 448 108 495 112 L493 101 C448 96 408 106 368 135 Z"/>
+  </g>
+  <g fill="#3d9e3d">
+    <ellipse cx="222" cy="116" rx="9" ry="5" transform="rotate(-25 222 116)"/>
+    <ellipse cx="242" cy="106" rx="8" ry="5" transform="rotate(10 242 106)"/>
+    <ellipse cx="202" cy="146" rx="8" ry="5" transform="rotate(-40 202 146)"/>
+    <ellipse cx="483" cy="90" rx="9" ry="5" transform="rotate(20 483 90)"/>
+    <ellipse cx="503" cy="106" rx="8" ry="5" transform="rotate(35 503 106)"/>
+    <ellipse cx="452" cy="80" rx="8" ry="5" transform="rotate(-10 452 80)"/>
+    <ellipse cx="315" cy="136" rx="8" ry="5" transform="rotate(-15 315 136)"/>
+    <ellipse cx="395" cy="116" rx="8" ry="5" transform="rotate(5 395 116)"/>
+    <ellipse cx="195" cy="203" rx="8" ry="5" transform="rotate(-20 195 203)"/>
+  </g>
+  <!-- Nodes -->
+  <g>
+    <circle cx="130" cy="210" r="72" fill="#fbe3b8" stroke="#f0a020" stroke-width="3"/>
+    <circle cx="130" cy="210" r="68" fill="none" stroke="#f0a020" stroke-width="1" opacity="0.5"/>
+    <text class="node-text" x="130" y="202"><tspan x="130" dy="0">At-risk or Incarcerated</tspan><tspan x="130" dy="10">persons experiencing</tspan><tspan x="130" dy="10">mental illness</tspan></text>
+
+    <circle cx="75" cy="330" r="42" fill="#fbe3b8" stroke="#f0a020" stroke-width="2.5"/>
+    <text class="node-text" x="75" y="334">1st Responders</text>
+
+    <circle cx="330" cy="55" r="38" fill="#fbe3b8" stroke="#f0a020" stroke-width="2.5"/>
+    <text class="node-text node-text-sm" x="330" y="52"><tspan x="330" dy="0">Putnam</tspan><tspan x="330" dy="9">County, FL</tspan></text>
+
+    <circle cx="335" cy="125" r="38" fill="#fbe3b8" stroke="#f0a020" stroke-width="2.5"/>
+    <text class="node-text node-text-sm" x="335" y="122"><tspan x="335" dy="0">St. Johns</tspan><tspan x="335" dy="9">County, FL</tspan></text>
+
+    <circle cx="520" cy="115" r="46" fill="#fbe3b8" stroke="#f0a020" stroke-width="2.5"/>
+    <text class="node-text node-text-sm" x="520" y="110"><tspan x="520" dy="0">Behavioral Health</tspan><tspan x="520" dy="9">Providers</tspan></text>
+
+    <circle cx="590" cy="285" r="68" fill="#fbe3b8" stroke="#f0a020" stroke-width="3"/>
+    <text class="node-text node-text-sm" x="590" y="272"><tspan x="590" dy="0">Families and concerned</tspan><tspan x="590" dy="9">citizens of people</tspan><tspan x="590" dy="9">experiencing mental</tspan><tspan x="590" dy="9">illness</tspan></text>
+
+    <circle cx="655" cy="175" r="36" fill="#fbe3b8" stroke="#f0a020" stroke-width="2.5"/>
+    <text class="node-text" x="655" y="179">Churches</text>
+  </g>
+</svg>

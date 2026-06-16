@@ -1,0 +1,163 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --navy: #001a57;
+  --text-dark: #333333;
+  --white: #ffffff;
+  --yellow: #f5c518;
+  --page-width: 8.5in;
+  --page-height: 10in;
+  --side-padding: 52px;
+  --bottom-margin: 56px;
+}
+
+html,
+body {
+  height: auto;
+  background: #e8e8e8;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0;
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  width: var(--page-width);
+  height: var(--page-height);
+  overflow: hidden;
+  background: var(--white);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Top section (white) ── */
+.top-section {
+  flex: 0 0 48%;
+  position: relative;
+  padding: 36px var(--side-padding) 28px;
+  background: var(--white);
+}
+
+.page-number {
+  position: absolute;
+  top: 36px;
+  right: var(--side-padding);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--navy);
+  text-transform: uppercase;
+}
+
+.top-line {
+  width: 100%;
+  height: 2px;
+  margin-top: 28px;
+  margin-bottom: 28px;
+  background: var(--navy);
+}
+
+.heading {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--navy);
+  margin-bottom: 22px;
+}
+
+.body-text {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--text-dark);
+  margin-bottom: 16px;
+}
+
+.body-text:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Bottom section (navy) ── */
+.bottom-section {
+  flex: 1;
+  margin-bottom: var(--bottom-margin);
+  padding: 36px var(--side-padding) 44px 0;
+  background: var(--navy);
+  color: var(--white);
+}
+
+.care-content {
+  padding-left: var(--side-padding);
+}
+
+.care-heading-wrap {
+  position: relative;
+  margin-bottom: 22px;
+}
+
+.yellow-accent {
+  position: absolute;
+  left: calc(-1 * var(--side-padding));
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 5px;
+  background: var(--yellow);
+}
+
+.care-heading {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--white);
+}
+
+.care-text {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--white);
+  margin-bottom: 16px;
+}
+
+.principles-list {
+  list-style: none;
+  margin-top: 4px;
+}
+
+.principles-list li {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+
+.principles-list li strong {
+  font-weight: 700;
+}
+
+/* ── Print ── */
+@media print {
+  html,
+  body {
+    background: none;
+    padding: 0;
+  }
+
+  .page {
+    box-shadow: none;
+    page-break-after: always;
+  }
+}

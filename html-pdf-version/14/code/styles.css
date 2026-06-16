@@ -1,0 +1,137 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --navy: #001a57;
+  --text-dark: #1a1a1a;
+  --white: #ffffff;
+  --page-width: 8.5in;
+  --page-height: 10in;
+  --left-padding: 40px;
+}
+
+html,
+body {
+  height: auto;
+  background: #e8e8e8;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0;
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.page {
+  display: flex;
+  width: var(--page-width);
+  height: var(--page-height);
+  overflow: hidden;
+  background: var(--white);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Left column ── */
+.left-col {
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  height: 100%;
+}
+
+.title-block {
+  flex: 0 0 34%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--left-padding);
+  background: var(--navy);
+}
+
+.page-title {
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.08;
+  color: var(--white);
+  text-align: center;
+}
+
+.text-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 28px var(--left-padding) 32px;
+  background: var(--white);
+}
+
+.theory-text {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--text-dark);
+  margin-bottom: 22px;
+}
+
+.separator-line {
+  width: 42%;
+  height: 4px;
+  background: var(--navy);
+  margin-bottom: 18px;
+}
+
+.footer-note {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--navy);
+  margin-top: 0;
+}
+
+/* ── Right column ── */
+.right-col {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.page-number {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--navy);
+  text-transform: uppercase;
+}
+
+.portrait-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* ── Print ── */
+@media print {
+  html,
+  body {
+    background: none;
+    padding: 0;
+  }
+
+  .page {
+    box-shadow: none;
+    page-break-after: always;
+  }
+}
