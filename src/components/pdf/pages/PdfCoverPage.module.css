@@ -1,0 +1,137 @@
+.page {
+  --navy: #203287;
+  --prepared-blue: #203287;
+  --care-model-blue: #7eb8e8;
+
+  position: relative;
+  width: 816px;
+  height: 1056px;
+  overflow: hidden;
+  background: #ffffff;
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.topBar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 128px; /* Strategic Plan banner height (96pt) @ 96dpi */
+  background: var(--navy);
+  overflow: visible;
+}
+
+.logoWrap {
+  position: relative;
+  z-index: 15;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  align-self: stretch;
+  width: 128px; /* match top bar */
+  background: #ffffff;
+}
+
+.logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.hero {
+  position: relative;
+  height: calc(1056px - 128px - 72px);
+  overflow: hidden;
+}
+
+.heroBgImg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background-color: #c8c4bc;
+  object-fit: cover;
+  object-position: center center;
+}
+
+.contentBox {
+  position: absolute;
+  left: 32px;
+  bottom: 64px;
+  z-index: 5;
+  width: 46%;
+  padding: 40px 36px 88px 32px;
+  background: #ffffff;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
+  color: #1a1a1a;
+  text-transform: uppercase;
+}
+
+.preparedBy {
+  margin-top: 36px;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: var(--prepared-blue);
+  text-transform: uppercase;
+}
+
+.organization {
+  margin-top: 8px;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #1a1a1a;
+  text-transform: uppercase;
+}
+
+.website {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 200;
+  color: #1a1a1a;
+  text-transform: lowercase;
+}
+
+.bottomBar {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  height: 72px; /* closer to Strategic Plan footer region */
+  padding: 0 0 0 28px;
+  background: var(--navy);
+}
+
+.footerText {
+  display: flex;
+  align-items: baseline;
+  gap: 56px;
+}
+
+.footerDate {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.footerLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--care-model-blue);
+  text-transform: uppercase;
+}
+

@@ -138,16 +138,14 @@ serve(async (req) => {
         ).join("\n")
       : "None recorded.";
 
-    // The downstream PDF renderer expects EXACTLY 9 ## sections, in this exact
-    // order, each constrained to fit on a single PDF page (~280 words max).
+    // The downstream PDF renderer expects these ## sections (one page each).
     const REQUIRED_SECTIONS = [
       "Executive Summary",
       "Mission",
-      "Problem",
-      "Population Served",
+      "Assessment",
       "Stakeholders",
+      "Problem",
       "Solutions",
-      "Theory of Change",
       "Implementation",
       "Measurement",
     ];
@@ -161,7 +159,7 @@ ${SECTION_SOURCE_MAP}
 
 ABSOLUTE RULES:
 - Output VALID MARKDOWN only — use ## H2 headings, ### H3 subheadings, and - bulleted lists. No tables, no code fences, no images, no horizontal rules.
-- Return EXACTLY 9 sections, in the EXACT order below, each prefixed with "## " followed by the exact title shown. Do NOT add, rename, reorder, merge, or drop any section.
+- Return EXACTLY 8 sections, in the EXACT order below, each prefixed with "## " followed by the exact title shown. Do NOT add, rename, reorder, merge, or drop any section.
 - Each section MUST fit on one printed page. HARD LIMITS PER SECTION: at most 280 words AND at most ~1800 characters. Use short paragraphs (2–3) or bullet lists. NEVER exceed these limits.
 - Do NOT include a leading # H1 title and do NOT include any prose before the first ## heading.
 - If a source session has no worksheet input or refined output, write the literal sentence: "This section will be developed in upcoming sessions." and nothing else for that section.
@@ -170,28 +168,25 @@ ABSOLUTE RULES:
 - Do NOT fabricate community names, statistics, partners, quotes, or geographies not present in the source material.
 - Use plain professional English. No emojis. No hype words.
 
-REQUIRED 9 SECTIONS (use these exact H2 titles, in this exact order):
+REQUIRED 8 SECTIONS (use these exact H2 titles, in this exact order):
 
 ## Executive Summary
-2–3 short paragraphs synthesizing Sessions 1, 2, 7, 9. Name the problem, the population most affected, the organization's response, and the intended long-term impact.
+2–3 short paragraphs synthesizing Sessions 1, 2, 7, 9. Name the problem, the population most affected, the organization's response, and the intended long-term impact. NEVER leave this section empty.
 
 ## Mission
 One paragraph grounded in the organization's stated mission and Session 1.
 
-## Problem
-2 short paragraphs from Session 1 — systemic framing, root causes, who is affected, why now. May include Session 3 historical framing.
-
-## Population Served
-1–2 paragraphs from Session 2 — geography, demographics, lived experience, and why this population.
+## Assessment
+2 short paragraphs synthesizing Phase 1 (Sessions 1–5) — community context, who is affected, historical framing, and baseline data insights from Sessions 2, 3, and 5.
 
 ## Stakeholders
 Lead-in sentence + bulleted list from Session 4. Each bullet: "**Group name** — role and how they are engaged." Max 6 bullets.
 
+## Problem
+2 short paragraphs from Session 1 — systemic framing, root causes, who is affected, why now. May include Session 3 historical framing.
+
 ## Solutions
 Lead-in sentence + bulleted list of the 2–4 core solutions from Sessions 7 + 8. Each bullet: bold action-verb label + one sentence.
-
-## Theory of Change
-Short narrative paragraph + a single bulleted chain: **Inputs → Activities → Outputs → Outcomes → Long-term Impact**. Synthesized from Sessions 8 + 9. Optionally 2–3 assumption bullets.
 
 ## Implementation
 1–2 short paragraphs from Sessions 6 + 11 — community assets that support delivery, timeline, who does what, and the data collection plan logistics.
@@ -210,7 +205,7 @@ SESSION WORK (synthesize across all of this; do not list it back):
 
 ${sessionDigest || "(No session work recorded yet.)"}
 
-Now write the full Strategic Plan as EXACTLY 9 ## sections in the required order. Remember the per-section word/character limits.`;
+Now write the full Strategic Plan as EXACTLY 8 ## sections in the required order. Remember the per-section word/character limits.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -249,31 +244,44 @@ Now write the full Strategic Plan as EXACTLY 9 ## sections in the required order
     const fenceMatch = narrative.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n?```\s*$/i);
     if (fenceMatch) narrative = fenceMatch[1].trim();
 
-    // Strip any leading H1 the model added despite instructions
-    narrative = narrative.replace(/^\s*#\s+[^\n]+\n+/, "").trim();
+    // Strip optional H1 document title (single #) — keep section content
+    narrative = narrative.replace(/^\s*#(?!#)\s+[^\n]+\n+/, "").trim();
 
-    // === Normalize to EXACTLY 9 sections in the required order ===
-    // Parse whatever the model returned, keyed by lowercased section title.
+    // === Normalize to EXACTLY 8 sections in the required order ===
     const found = new Map<string, string>();
-    const blocks = narrative.split(/\n(?=##\s)/);
-    for (const block of blocks) {
-      const m = block.match(/^##\s+(.+?)\n?([\s\S]*)$/);
-      if (!m) continue;
-      const title = m[1].trim();
-      const body = (m[2] || "").trim();
-      found.set(title.toLowerCase(), body);
+    const h2Regex = /^##\s+(.+)$/gm;
+    const matches = [...narrative.matchAll(h2Regex)];
+    if (matches.length === 0 && narrative.trim()) {
+      found.set("executive summary", narrative.trim());
+    } else {
+      if (matches[0]?.index! > 0) {
+        const preamble = narrative.slice(0, matches[0].index!).trim();
+        if (preamble) found.set("executive summary", preamble);
+      }
+      for (let i = 0; i < matches.length; i++) {
+        const title = matches[i][1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+        const start = matches[i].index! + matches[i][0].length;
+        const end = i + 1 < matches.length ? matches[i + 1].index! : narrative.length;
+        const body = narrative.slice(start, end).trim();
+        if (!found.has(title) || body) found.set(title, body);
+      }
     }
 
-    // Loose alias matching for common renames the model sometimes emits.
     const ALIASES: Record<string, string[]> = {
-      "executive summary": ["executive summary", "summary"],
-      "mission": ["mission", "our mission"],
-      "problem": ["problem", "problem (opportunity)", "problem statement", "the problem"],
-      "population served": ["population served", "community served", "who we serve"],
+      "executive summary": ["executive summary", "summary", "executive overview", "overview"],
+      "mission": ["mission", "our mission", "organization mission & vision"],
+      "assessment": [
+        "assessment",
+        "community context & assessment",
+        "community context",
+        "population served",
+        "community served",
+        "who we serve",
+      ],
       "stakeholders": ["stakeholders", "stakeholder analysis", "invested parties"],
-      "solutions": ["solutions", "solutions discussion", "solutions alignment"],
-      "theory of change": ["theory of change", "logic model"],
-      "implementation": ["implementation", "implementation plan", "data collection plan", "community asset mapping"],
+      "problem": ["problem", "problem (opportunity)", "problem statement", "the problem", "root cause & problem framing"],
+      "solutions": ["solutions", "solutions discussion", "solutions alignment", "proposed solutions"],
+      "implementation": ["implementation", "implementation plan", "implementation roadmap", "data collection plan", "community asset mapping"],
       "measurement": ["measurement", "community impact metrics", "metrics", "community impact metrics tool"],
     };
 

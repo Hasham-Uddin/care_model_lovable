@@ -143,6 +143,9 @@ export const PdfPreviewDialog = ({ open, onOpenChange, previewData }: PdfPreview
   useEffect(() => {
     if (!previewData || !open) return;
 
+    let cancelled = false;
+    let freshBlobUrl: string | null = null;
+
     setEditableSessions(
       previewData.sessions.map((s) => ({
         id: s.id,
@@ -159,26 +162,31 @@ export const PdfPreviewDialog = ({ open, onOpenChange, previewData }: PdfPreview
     setOrgLogoDataUrl(previewData.cover?.orgLogoDataUrl);
     setCoverPhotoDataUrl(previewData.cover?.coverPhotoDataUrl);
 
-    const { blobUrl: freshBlobUrl } = rebuildPdfPreview(
-      previewData.project,
-      previewData.sessions,
-      previewData.artifacts,
-      previewData.interrogations,
-      previewData.blobUrl,
-      previewData.mode,
-      previewData.narrative,
-      previewData.cover,
-      previewData.teamMembers || []
-    );
+    (async () => {
+      const result = await rebuildPdfPreview(
+        previewData.project,
+        previewData.sessions,
+        previewData.artifacts,
+        previewData.interrogations,
+        previewData.blobUrl,
+        previewData.mode,
+        previewData.narrative,
+        previewData.cover,
+        previewData.teamMembers || []
+      );
+      if (cancelled) return;
 
-    setBlobUrl(freshBlobUrl);
-    setPreviewUrl(freshBlobUrl);
-    setDownloadUrl(null);
-    setIsDirty(false);
-    setActiveTab("preview");
+      freshBlobUrl = result.blobUrl;
+      setBlobUrl(result.blobUrl);
+      setPreviewUrl(result.previewUrl || result.blobUrl);
+      setDownloadUrl(null);
+      setIsDirty(false);
+      setActiveTab("preview");
+    })();
 
     return () => {
-      URL.revokeObjectURL(freshBlobUrl);
+      cancelled = true;
+      if (freshBlobUrl) URL.revokeObjectURL(freshBlobUrl);
     };
   }, [previewData, open]);
 
@@ -191,7 +199,7 @@ export const PdfPreviewDialog = ({ open, onOpenChange, previewData }: PdfPreview
     setIsDirty(true);
   };
 
-  const handleRefreshPreview = useCallback(() => {
+  const handleRefreshPreview = useCallback(async () => {
     if (!previewData) return;
 
     const updatedSessions = previewData.sessions.map((s) => {
@@ -202,7 +210,7 @@ export const PdfPreviewDialog = ({ open, onOpenChange, previewData }: PdfPreview
       return s;
     });
 
-    const result = rebuildPdfPreview(
+    const result = await rebuildPdfPreview(
       previewData.project,
       updatedSessions,
       previewData.artifacts,
@@ -274,7 +282,7 @@ export const PdfPreviewDialog = ({ open, onOpenChange, previewData }: PdfPreview
         return s;
       });
 
-      const pdfBlob = createPdfBlob(
+      const pdfBlob = await createPdfBlob(
         previewData.project,
         updatedSessions,
         previewData.artifacts,

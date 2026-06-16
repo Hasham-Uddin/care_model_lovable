@@ -8,6 +8,10 @@ import { OUTFIT_REGULAR_BASE64 } from "@/utils/outfitRegularFont";
 import { OUTFIT_BOLD_BASE64 } from "@/utils/outfitBoldFont";
 import { PDF_STATIC_PAGE_2 } from "@/utils/pdfStaticPage2";
 import { PDF_STATIC_PAGE_3 } from "@/utils/pdfStaticPage3";
+import {
+  formatCoverDate,
+  renderPdfCoverPageToDataUrl,
+} from "@/utils/renderPdfCoverPage.tsx";
 
 // Brand colors (MEASURE brand)
 const COLORS = {
@@ -94,7 +98,7 @@ class PdfBuilder {
     this.doc.addFileToVFS("DancingScript.ttf", DANCING_SCRIPT_BASE64);
     this.doc.addFont("DancingScript.ttf", "DancingScript", "normal");
 
-    // Register Outfit (MEASURE brand font) — used by the fixed 16-page Strategic Plan
+    // Register Outfit (MEASURE brand font) — used by the fixed 15-page Strategic Plan
     this.doc.addFileToVFS("Outfit-Regular.ttf", OUTFIT_REGULAR_BASE64);
     this.doc.addFont("Outfit-Regular.ttf", "Outfit", "normal");
     this.doc.addFileToVFS("Outfit-Bold.ttf", OUTFIT_BOLD_BASE64);
@@ -421,7 +425,7 @@ class PdfBuilder {
 
   // ── Build the PDF ─────────────────────────────────────
 
-  build(
+  async build(
     project: ExportProject,
     sessions: ExportSession[],
     artifacts: ExportArtifact[],
@@ -436,7 +440,7 @@ class PdfBuilder {
     const progressPercent = Math.round((completedCount / 12) * 100);
 
     // ═══ PAGE 1: COVER ═══
-    this.buildCoverPage(project, completedCount, progressPercent, cover);
+    await this.buildCoverPage(project, completedCount, progressPercent, cover);
 
     // ═══ PAGE 2: LETTER OF ACKNOWLEDGMENT (full-bleed branded image) ═══
     this.doc.addPage();
@@ -448,9 +452,9 @@ class PdfBuilder {
     this.pageNum++;
     this.doc.addImage(PDF_STATIC_PAGE_3, "JPEG", 0, 0, this.pageWidth, this.pageHeight);
 
-    // ═══ POLISHED MODE: fixed 16-page Strategic Plan, one section per page ═══
+    // ═══ POLISHED MODE: fixed 15-page Strategic Plan, one section per page ═══
     if (this.mode === "polished" && narrative && narrative.trim()) {
-      this.renderStrategicPlanFixed16(project, sessions, narrative, teamMembers);
+      this.renderStrategicPlanFixed15(project, sessions, narrative, teamMembers);
       return this.doc;
     }
 
@@ -553,10 +557,44 @@ class PdfBuilder {
     this.addPageNumber();
   }
 
-  private buildCoverPage(
+  private async buildCoverPage(
     project: ExportProject,
     _completedCount: number,
     _progressPercent: number,
+    cover?: CoverDetails
+  ) {
+    if (this.mode === "polished") {
+      await this.buildPolishedCoverPage(project, cover);
+      return;
+    }
+
+    this.buildDraftCoverPage(project, cover);
+  }
+
+  private async buildPolishedCoverPage(
+    project: ExportProject,
+    cover?: CoverDetails
+  ) {
+    const W = this.pageWidth;
+    const H = this.pageHeight;
+
+    try {
+      const dataUrl = await renderPdfCoverPageToDataUrl({
+        projectName: project.name,
+        date: formatCoverDate(cover),
+        orgLogoUrl: cover?.orgLogoDataUrl,
+        coverPhotoUrl: cover?.coverPhotoDataUrl,
+        preparedBy: cover?.facilitatorName?.trim() || "MEASURE",
+      });
+      this.doc.addImage(dataUrl, "PNG", 0, 0, W, H, undefined, "FAST");
+    } catch (e) {
+      console.warn("Polished cover render failed, falling back to draft cover", e);
+      this.buildDraftCoverPage(project, cover);
+    }
+  }
+
+  private buildDraftCoverPage(
+    project: ExportProject,
     cover?: CoverDetails
   ) {
     const W = this.pageWidth;
@@ -1271,19 +1309,22 @@ class PdfBuilder {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // FIXED 16-PAGE STRATEGIC PLAN RENDERER
+  // FIXED 15-PAGE STRATEGIC PLAN RENDERER
   //   Pages 1–3 are produced by build() (cover + 2 static branded images).
-  //   This method produces pages 4–16, one section per page:
+  //   This method produces pages 4–15, one section per page:
   //     4: Table of Contents
-  //     5–11: AI sections 1–7 (Executive Summary, Mission, Problem,
-  //            Population Served, Stakeholders, Solutions, Theory of Change)
-  //     12: Action Items (from sessions.next_steps)
-  //     13: AI section 8 (Implementation)
-  //     14: AI section 9 (Measurement)
-  //     15: Team Roster (from project_members)
-  //     16: Closing / Contact
-  //   Every page 4–16 carries the navy banner + wordmark footer with page #.
-  //   Body type: Outfit 11pt, 1.5 line height, 0.75" margins (54pt).
+  //     5: Executive Summary
+  //     6: Organization Mission & Vision
+  //     7: Community Context & Assessment
+  //     8: Stakeholder Analysis
+  //     9: Root Cause & Problem Framing
+  //    10: Proposed Solutions
+  //    11: Implementation Roadmap
+  //    12: Action Items & Next Steps (sessions.next_steps)
+  //    13: Measurement & Success Indicators
+  //    14: Team & Acknowledgments (project_members)
+  //    15: Closing / Call to Action / Contact
+  //   Every page 4–15 carries the navy banner + wordmark footer with page #.
   // ═══════════════════════════════════════════════════════════════════════════
 
   private SP_MARGIN = 54;                  // 0.75" at 72dpi
@@ -1351,7 +1392,7 @@ class PdfBuilder {
     this.doc.setFont("Outfit", "normal");
     this.doc.setFontSize(10);
     this.doc.setTextColor(...COLORS.midGray);
-    this.doc.text(`PAGE ${pageLabel} OF 16`, this.pageWidth - this.SP_MARGIN, footerY, { align: "right" });
+    this.doc.text(`PAGE ${pageLabel} OF 15`, this.pageWidth - this.SP_MARGIN, footerY, { align: "right" });
   }
 
   // Render markdown-style body inside a single section page, with strict
@@ -1437,6 +1478,13 @@ class PdfBuilder {
 
     let blocks = parseBlocks(raw);
 
+    if (blocks.length === 0) {
+      const fallback = raw.trim() || (markdown || "").trim();
+      if (fallback) {
+        blocks = [{ kind: "para", text: fallback.replace(/\*\*/g, "").replace(/__/g, "") }];
+      }
+    }
+
     // Choose the largest body size that fits; otherwise truncate.
     let fits = false;
     for (const size of bodySizes) {
@@ -1448,14 +1496,22 @@ class PdfBuilder {
     }
     if (!fits) {
       chosen = bodySizes[bodySizes.length - 1];
-      // Truncate blocks until they fit
-      while (blocks.length > 0 && measure(blocks, chosen) > maxH) {
+      // Truncate blocks until they fit — never remove the last block entirely
+      while (blocks.length > 1 && measure(blocks, chosen) > maxH) {
         const last = blocks[blocks.length - 1];
         if (last.kind === "para" && last.text.length > 40) {
           last.text = last.text.slice(0, Math.max(40, last.text.length - 80)).replace(/\s+\S*$/, "") + "…";
           if (measure(blocks, chosen) <= maxH) break;
         }
         blocks.pop();
+      }
+      if (blocks.length === 1 && measure(blocks, chosen) > maxH) {
+        const only = blocks[0];
+        if (only.kind === "para") {
+          while (only.text.length > 40 && measure(blocks, chosen) > maxH) {
+            only.text = only.text.slice(0, only.text.length - 60).replace(/\s+\S*$/, "") + "…";
+          }
+        }
       }
     }
 
@@ -1503,57 +1559,282 @@ class PdfBuilder {
     }
   }
 
-  private renderStrategicPlanFixed16(
+  // Compact renderer for Action Items — always shows all 12 CARE sessions;
+  // scales font/columns and trims per-session text rather than dropping entries.
+  private spRenderActionItems(
+    items: { session: number; name: string; text: string }[]
+  ) {
+    const sorted = [...items].sort((a, b) => a.session - b.session);
+    const maxH = this.SP_BODY_BOTTOM_LIMIT() - this.y;
+    const innerW = this.pageWidth - this.SP_MARGIN * 2;
+    const count = sorted.length;
+    const useTwoCol = count > 6; // 7–12 sessions → 6 per column at most
+    const colGap = 18;
+    const colW = useTwoCol ? (innerW - colGap) / 2 : innerW;
+    const leftItems = useTwoCol ? sorted.slice(0, Math.ceil(count / 2)) : sorted;
+    const rightItems = useTwoCol ? sorted.slice(Math.ceil(count / 2)) : [];
+
+    const normalizeText = (t: string) =>
+      t.replace(/\r\n/g, "\n").replace(/\*\*/g, "").replace(/__/g, "").replace(/\s+/g, " ").trim();
+
+    const bodySizes =
+      count <= 5 ? [10, 9.5, 9, 8.5, 8]
+      : count <= 8 ? [9.5, 9, 8.5, 8, 7.5]
+      : [9.5, 9, 8.5, 8, 7.5]; // 9–12 sessions, 6 per column max
+
+    type FittedItem = { session: number; name: string; header: string; lines: string[] };
+
+    const truncateHeader = (label: string, size: number): string => {
+      this.doc.setFontSize(size);
+      if (this.doc.getTextWidth(label) <= colW) return label;
+      let trimmed = label;
+      while (trimmed.length > 12 && this.doc.getTextWidth(trimmed + "…") > colW) {
+        trimmed = trimmed.slice(0, -1);
+      }
+      return trimmed + "…";
+    };
+
+    const fitColumn = (
+      colItems: typeof sorted,
+      size: number,
+      maxLinesPerItem: number,
+      gap: number
+    ): { items: FittedItem[]; height: number } => {
+      const lineH = size * 1.2;
+      const headerH = size + 3;
+      let h = 0;
+      const fitted: FittedItem[] = [];
+
+      for (const item of colItems) {
+        const label = truncateHeader(`Session ${item.session} — ${item.name}`, size);
+        const text = normalizeText(item.text);
+        this.doc.setFontSize(size);
+        const bodyLines = this.doc.splitTextToSize(text, colW) as string[];
+        const capped = bodyLines.slice(0, maxLinesPerItem);
+        if (bodyLines.length > maxLinesPerItem && capped.length > 0) {
+          const last = capped[capped.length - 1];
+          capped[capped.length - 1] =
+            last.length > 3 ? last.replace(/\s+\S*$/, "") + "…" : last + "…";
+        }
+
+        fitted.push({ session: item.session, name: item.name, header: label, lines: capped });
+        h += headerH + capped.length * lineH + gap;
+      }
+      return { items: fitted, height: h };
+    };
+
+    const columnHeight = (size: number, maxLines: number, gap: number) =>
+      Math.max(
+        fitColumn(leftItems, size, maxLines, gap).height,
+        rightItems.length ? fitColumn(rightItems, size, maxLines, gap).height : 0
+      );
+
+    let chosenSize = bodySizes[bodySizes.length - 1];
+    let chosenMaxLines = 1;
+    const gapFor = (n: number) => (n >= 9 ? 4 : n > 6 ? 5 : 7);
+
+    outer: for (const size of bodySizes) {
+      const gap = gapFor(count);
+      for (let maxLines = 10; maxLines >= 1; maxLines--) {
+        if (columnHeight(size, maxLines, gap) <= maxH) {
+          chosenSize = size;
+          chosenMaxLines = maxLines;
+          break outer;
+        }
+      }
+    }
+
+    const gap = gapFor(count);
+    const left = fitColumn(leftItems, chosenSize, chosenMaxLines, gap);
+    const right = rightItems.length
+      ? fitColumn(rightItems, chosenSize, chosenMaxLines, gap)
+      : null;
+
+    const lineH = chosenSize * 1.2;
+    const headerH = chosenSize + 3;
+
+    const renderColumn = (colItems: FittedItem[], x: number) => {
+      let yy = this.y;
+      for (const item of colItems) {
+        this.doc.setFont("Outfit", "bold");
+        this.doc.setFontSize(chosenSize);
+        this.doc.setTextColor(...COLORS.darkCornflower);
+        this.doc.text(item.header, x, yy + chosenSize);
+        yy += headerH;
+
+        this.doc.setFont("Outfit", "normal");
+        this.doc.setTextColor(...COLORS.bodyText);
+        for (const ln of item.lines) {
+          this.doc.text(ln, x, yy + chosenSize);
+          yy += lineH;
+        }
+        yy += gap;
+      }
+    };
+
+    renderColumn(left.items, this.SP_MARGIN);
+    if (right) {
+      renderColumn(right.items, this.SP_MARGIN + colW + colGap);
+    }
+  }
+
+  private normalizeNarrativeTitle(title: string): string {
+    return title
+      .trim()
+      .replace(/^\*+|\*+$/g, "")
+      .replace(/[:.]+$/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  private parseNarrativeSections(pre: string): Map<string, string> {
+    const found = new Map<string, string>();
+    const h2Regex = /^##\s+(.+)$/gm;
+    const matches = [...pre.matchAll(h2Regex)];
+
+    if (matches.length === 0) {
+      const trimmed = pre.trim();
+      if (trimmed) found.set("executive summary", trimmed);
+      return found;
+    }
+
+    if (matches[0].index! > 0) {
+      const preamble = pre.slice(0, matches[0].index!).trim();
+      if (preamble) found.set("executive summary", preamble);
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const title = this.normalizeNarrativeTitle(matches[i][1]);
+      const start = matches[i].index! + matches[i][0].length;
+      const end = i + 1 < matches.length ? matches[i + 1].index! : pre.length;
+      const body = pre.slice(start, end).trim();
+      if (!found.has(title) || body) {
+        found.set(title, body);
+      }
+    }
+
+    return found;
+  }
+
+  private resolveNarrativeKey(
+    normalizedTitle: string,
+    aliases: Record<string, string[]>
+  ): string | null {
+    for (const [key, aliasList] of Object.entries(aliases)) {
+      if (aliasList.includes(normalizedTitle)) return key;
+    }
+    for (const [key, aliasList] of Object.entries(aliases)) {
+      if (aliasList.some((a) => normalizedTitle.includes(a) || a.includes(normalizedTitle))) {
+        return key;
+      }
+    }
+    if (normalizedTitle.includes("executive") && normalizedTitle.includes("summary")) {
+      return "executive summary";
+    }
+    if (normalizedTitle.includes("mission")) return "mission";
+    if (normalizedTitle.includes("assessment") || normalizedTitle.includes("community context")) {
+      return "assessment";
+    }
+    if (normalizedTitle.includes("stakeholder")) return "stakeholders";
+    if (normalizedTitle.includes("problem") || normalizedTitle.includes("root cause")) {
+      return "problem";
+    }
+    if (normalizedTitle.includes("solution")) return "solutions";
+    if (normalizedTitle.includes("implementation")) return "implementation";
+    if (normalizedTitle.includes("measurement") || normalizedTitle.includes("metric")) {
+      return "measurement";
+    }
+    return null;
+  }
+
+  private renderStrategicPlanFixed15(
     project: ExportProject,
     sessions: ExportSession[],
     narrative: string,
     teamMembers: TeamMember[]
   ) {
-    // Parse the 9 ## sections produced by the edge function
     let pre = (narrative || "").replace(/\r\n/g, "\n").trim();
     const outerFence = pre.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n?```\s*$/i);
     if (outerFence) pre = outerFence[1].trim();
-    pre = pre.replace(/^\s*#\s+[^\n]+\n+/, "").trim();
+    // Strip a leading H1 document title only (single #) — preamble is preserved
+    pre = pre.replace(/^\s*#(?!#)\s+[^\n]+\n+/, "").trim();
 
-    const REQUIRED = [
-      "Executive Summary",
-      "Mission",
-      "Problem",
-      "Population Served",
-      "Stakeholders",
-      "Solutions",
-      "Theory of Change",
-      "Implementation",
-      "Measurement",
-    ];
     const PLACEHOLDER = "This section will be developed in upcoming sessions.";
 
+    const rawFound = this.parseNarrativeSections(pre);
+
+    const ALIASES: Record<string, string[]> = {
+      "executive summary": [
+        "executive summary",
+        "summary",
+        "executive overview",
+        "overview",
+      ],
+      mission: ["mission", "our mission", "organization mission & vision", "mission & vision"],
+      assessment: [
+        "assessment",
+        "community context & assessment",
+        "community context",
+        "community context and assessment",
+        "population served",
+        "community served",
+        "who we serve",
+      ],
+      stakeholders: ["stakeholders", "stakeholder analysis", "invested parties"],
+      problem: [
+        "problem",
+        "root cause & problem framing",
+        "root cause and problem framing",
+        "problem (opportunity)",
+        "problem statement",
+        "the problem",
+      ],
+      solutions: ["solutions", "proposed solutions", "solutions discussion", "solutions alignment"],
+      implementation: [
+        "implementation",
+        "implementation roadmap",
+        "implementation plan",
+        "data collection plan",
+      ],
+      measurement: [
+        "measurement",
+        "measurement & success indicators",
+        "measurement and success indicators",
+        "community impact metrics",
+        "metrics",
+      ],
+    };
+
     const found = new Map<string, string>();
-    for (const block of pre.split(/\n(?=##\s)/)) {
-      const m = block.match(/^##\s+(.+?)\n?([\s\S]*)$/);
-      if (!m) continue;
-      found.set(m[1].trim().toLowerCase(), (m[2] || "").trim());
+    for (const [title, body] of rawFound.entries()) {
+      const key = this.resolveNarrativeKey(title, ALIASES) ?? title;
+      const existing = found.get(key);
+      if (!existing || (!existing.trim() && body.trim())) {
+        found.set(key, body);
+      }
     }
-    const sectionBody = (title: string): string => {
-      const body = found.get(title.toLowerCase());
-      return body && body.trim() ? body.trim() : PLACEHOLDER;
+
+    const sectionBody = (key: string): string => {
+      const body = found.get(key.toLowerCase());
+      if (body?.trim()) return body.trim();
+      return PLACEHOLDER;
     };
 
     // ── PAGE 4: Table of Contents ──
     this.spStartSectionPage("Table of Contents", 4);
     const tocItems: { label: string; page: number }[] = [
       { label: "Executive Summary", page: 5 },
-      { label: "Mission", page: 6 },
-      { label: "Problem", page: 7 },
-      { label: "Population Served", page: 8 },
-      { label: "Stakeholders", page: 9 },
-      { label: "Solutions", page: 10 },
-      { label: "Theory of Change", page: 11 },
-      { label: "Action Items", page: 12 },
-      { label: "Implementation", page: 13 },
-      { label: "Measurement", page: 14 },
-      { label: "Team Roster", page: 15 },
-      { label: "Closing & Contact", page: 16 },
+      { label: "Organization Mission & Vision", page: 6 },
+      { label: "Community Context & Assessment", page: 7 },
+      { label: "Stakeholder Analysis", page: 8 },
+      { label: "Root Cause & Problem Framing", page: 9 },
+      { label: "Proposed Solutions", page: 10 },
+      { label: "Implementation Roadmap", page: 11 },
+      { label: "Action Items & Next Steps", page: 12 },
+      { label: "Measurement & Success Indicators", page: 13 },
+      { label: "Team & Acknowledgments", page: 14 },
+      { label: "Closing / Call to Action / Contact", page: 15 },
     ];
     this.doc.setTextColor(...COLORS.bodyText);
     this.doc.setFont("Outfit", "normal");
@@ -1567,7 +1848,6 @@ class PdfBuilder {
       this.doc.setFont("Outfit", "normal");
       this.doc.setTextColor(...COLORS.darkText);
       this.doc.text(item.label, this.SP_MARGIN + 36, labelY);
-      // Dotted leader
       const dotsStart = this.SP_MARGIN + 36 + this.doc.getTextWidth(item.label) + 8;
       const dotsEnd = this.pageWidth - this.SP_MARGIN - 24;
       this.doc.setTextColor(190, 190, 200);
@@ -1576,55 +1856,44 @@ class PdfBuilder {
         this.doc.text(".", dx, labelY);
         dx += 5;
       }
-      // Right page number
       this.doc.setTextColor(...COLORS.darkCornflower);
       this.doc.setFont("Outfit", "bold");
       this.doc.text(String(item.page), this.pageWidth - this.SP_MARGIN, labelY, { align: "right" });
       this.y += rowH;
     }
 
-    // ── PAGES 5–11: AI sections 1–7 ──
-    const pageMap: { title: string; page: number }[] = [
-      { title: "Executive Summary", page: 5 },
-      { title: "Mission", page: 6 },
-      { title: "Problem", page: 7 },
-      { title: "Population Served", page: 8 },
-      { title: "Stakeholders", page: 9 },
-      { title: "Solutions", page: 10 },
-      { title: "Theory of Change", page: 11 },
+    // ── PAGES 5–11: AI narrative sections ──
+    const aiPages: { bannerTitle: string; narrativeKey: string; page: number }[] = [
+      { bannerTitle: "Executive Summary", narrativeKey: "executive summary", page: 5 },
+      { bannerTitle: "Organization Mission & Vision", narrativeKey: "mission", page: 6 },
+      { bannerTitle: "Community Context & Assessment", narrativeKey: "assessment", page: 7 },
+      { bannerTitle: "Stakeholder Analysis", narrativeKey: "stakeholders", page: 8 },
+      { bannerTitle: "Root Cause & Problem Framing", narrativeKey: "problem", page: 9 },
+      { bannerTitle: "Proposed Solutions", narrativeKey: "solutions", page: 10 },
+      { bannerTitle: "Implementation Roadmap", narrativeKey: "implementation", page: 11 },
     ];
-    for (const s of pageMap) {
-      this.spStartSectionPage(s.title, s.page);
-      this.spRenderFittedBody(sectionBody(s.title));
+    for (const s of aiPages) {
+      this.spStartSectionPage(s.bannerTitle, s.page);
+      this.spRenderFittedBody(sectionBody(s.narrativeKey));
     }
 
-    // ── PAGE 12: Action Items (from sessions.next_steps) ──
-    this.spStartSectionPage("Action Items", 12);
+    // ── PAGE 12: Action Items & Next Steps ──
+    this.spStartSectionPage("Action Items & Next Steps", 12);
     const actionItems = (sessions || [])
       .filter((s) => s.next_steps && s.next_steps.trim())
       .map((s) => ({ session: s.session_number, name: s.session_name, text: s.next_steps!.trim() }));
     if (actionItems.length === 0) {
       this.spRenderFittedBody(PLACEHOLDER);
     } else {
-      const blocks = actionItems
-        .map(
-          (a) =>
-            `### Session ${a.session} — ${a.name}\n${a.text}`
-        )
-        .join("\n\n");
-      this.spRenderFittedBody(blocks);
+      this.spRenderActionItems(actionItems);
     }
 
-    // ── PAGE 13: Implementation ──
-    this.spStartSectionPage("Implementation", 13);
-    this.spRenderFittedBody(sectionBody("Implementation"));
+    // ── PAGE 13: Measurement & Success Indicators ──
+    this.spStartSectionPage("Measurement & Success Indicators", 13);
+    this.spRenderFittedBody(sectionBody("measurement"));
 
-    // ── PAGE 14: Measurement ──
-    this.spStartSectionPage("Measurement", 14);
-    this.spRenderFittedBody(sectionBody("Measurement"));
-
-    // ── PAGE 15: Team Roster (from project_members) ──
-    this.spStartSectionPage("Team Roster", 15);
+    // ── PAGE 14: Team & Acknowledgments ──
+    this.spStartSectionPage("Team & Acknowledgments", 14);
     if (!teamMembers || teamMembers.length === 0) {
       this.spRenderFittedBody(
         "Team roster is not yet available. Invite your CARE Team members from the project page to populate this section."
@@ -1648,8 +1917,8 @@ class PdfBuilder {
       this.spRenderFittedBody(parts.join("\n\n"));
     }
 
-    // ── PAGE 16: Closing / Contact ──
-    this.spStartSectionPage("Closing & Contact", 16);
+    // ── PAGE 15: Closing / Call to Action / Contact ──
+    this.spStartSectionPage("Closing / Call to Action / Contact", 15);
     const orgName = project.organizations?.name || "your organization";
     const orgLoc = project.organizations?.location || "";
     const closing = [
@@ -1713,7 +1982,7 @@ export async function generateProjectPdfPreview(
   teamMembers: TeamMember[] = []
 ): Promise<PdfPreviewData> {
   const builder = new PdfBuilder();
-  builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
+  await builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
   const safeName = project.name.replace(/[^a-z0-9]/gi, "_");
   const suffix = mode === "polished" ? "Strategic_Plan" : "Working_Draft";
   const filename = `${safeName}_${suffix}.pdf`;
@@ -1733,7 +2002,7 @@ export async function generateProjectPdfPreview(
   };
 }
 
-export function rebuildPdfPreview(
+export async function rebuildPdfPreview(
   project: ExportProject,
   sessions: ExportSession[],
   artifacts: ExportArtifact[],
@@ -1743,15 +2012,15 @@ export function rebuildPdfPreview(
   narrative?: string,
   cover?: CoverDetails,
   teamMembers: TeamMember[] = []
-): { blobUrl: string; previewUrl: string; builder: PdfBuilder } {
+): Promise<{ blobUrl: string; previewUrl: string; builder: PdfBuilder }> {
   if (oldBlobUrl) URL.revokeObjectURL(oldBlobUrl);
   const builder = new PdfBuilder();
-  builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
+  await builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
   const blobUrl = builder.getBlobUrl();
   return { blobUrl, previewUrl: blobUrl, builder };
 }
 
-export function createPdfObjectUrl(
+export async function createPdfObjectUrl(
   project: ExportProject,
   sessions: ExportSession[],
   artifacts: ExportArtifact[],
@@ -1760,13 +2029,13 @@ export function createPdfObjectUrl(
   narrative?: string,
   cover?: CoverDetails,
   teamMembers: TeamMember[] = []
-): string {
+): Promise<string> {
   const builder = new PdfBuilder();
-  builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
+  await builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
   return builder.getBlobUrl();
 }
 
-export function createPdfBlob(
+export async function createPdfBlob(
   project: ExportProject,
   sessions: ExportSession[],
   artifacts: ExportArtifact[],
@@ -1775,13 +2044,13 @@ export function createPdfBlob(
   narrative?: string,
   cover?: CoverDetails,
   teamMembers: TeamMember[] = []
-): Blob {
+): Promise<Blob> {
   const builder = new PdfBuilder();
-  builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
+  await builder.build(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
   return builder.getBlob();
 }
 
-export function downloadPdf(
+export async function downloadPdf(
   project: ExportProject,
   sessions: ExportSession[],
   artifacts: ExportArtifact[],
@@ -1792,7 +2061,16 @@ export function downloadPdf(
   cover?: CoverDetails,
   teamMembers: TeamMember[] = []
 ) {
-  const pdfBlob = createPdfBlob(project, sessions, artifacts, interrogations, mode, narrative, cover, teamMembers);
+  const pdfBlob = await createPdfBlob(
+    project,
+    sessions,
+    artifacts,
+    interrogations,
+    mode,
+    narrative,
+    cover,
+    teamMembers
+  );
   triggerPdfDownload(pdfBlob, filename);
 }
 
