@@ -54,6 +54,7 @@ interface Session {
 interface Project {
   id: string;
   name: string;
+  facilitator_id: string;
   data_donation_consent: boolean;
   start_date: string | null;
   end_date: string | null;
@@ -134,6 +135,19 @@ const ProjectDetail = () => {
       if (projectError) throw projectError;
       setProject(projectData);
 
+      // Legacy projects may lack a facilitator row in project_members
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && projectData.facilitator_id === user.id) {
+        await supabase.from("project_members").upsert(
+          {
+            project_id: projectId!,
+            user_id: user.id,
+            role: "care_team_leader",
+          },
+          { onConflict: "project_id,user_id", ignoreDuplicates: true }
+        );
+      }
+
       // Fetch sessions
       const { data: sessionsData, error: sessionsError } = await supabase
         .from("sessions")
@@ -209,13 +223,14 @@ const ProjectDetail = () => {
 
       // Enrich team members with profile name + email
       let teamMembers: { full_name: string | null; email: string; role: string }[] = [];
-      if (members && members.length > 0) {
-        const userIds = members.map((m: any) => m.user_id);
+      const memberRows = members ?? [];
+      if (memberRows.length > 0) {
+        const userIds = memberRows.map((m: any) => m.user_id);
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, full_name, email")
           .in("id", userIds);
-        teamMembers = members.map((m: any) => {
+        teamMembers = memberRows.map((m: any) => {
           const p = profiles?.find((x: any) => x.id === m.user_id);
           return {
             full_name: p?.full_name ?? null,
@@ -223,6 +238,26 @@ const ProjectDetail = () => {
             role: m.role,
           };
         });
+      }
+
+      // Facilitator should always appear on the team roster (older projects may lack a row)
+      const facilitatorOnRoster = memberRows.some((m: any) => m.user_id === project.facilitator_id);
+      if (!facilitatorOnRoster) {
+        const { data: facilitatorProfile } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("id", project.facilitator_id)
+          .single();
+        if (facilitatorProfile) {
+          teamMembers = [
+            {
+              full_name: facilitatorProfile.full_name,
+              email: facilitatorProfile.email ?? "",
+              role: "care_team_leader",
+            },
+            ...teamMembers,
+          ];
+        }
       }
 
       let narrative: string | undefined;

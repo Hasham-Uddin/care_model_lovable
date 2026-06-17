@@ -12,6 +12,8 @@ import {
   formatCoverDate,
   renderPdfCoverPageToDataUrl,
 } from "@/utils/renderPdfCoverPage.tsx";
+import { renderPdfExecutiveSummaryPageToDataUrl } from "@/utils/renderPdfExecutiveSummaryPage.tsx";
+import { renderPdfStakeholderAnalysisPageToDataUrl } from "@/utils/renderPdfStakeholderAnalysisPage.tsx";
 
 // Brand colors (MEASURE brand)
 const COLORS = {
@@ -86,6 +88,7 @@ class PdfBuilder {
   private contentWidth: number;
   private pageNum = 1;
   private mode: PdfMode = "draft";
+  private spCover?: CoverDetails;
 
   constructor() {
     this.doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -454,7 +457,8 @@ class PdfBuilder {
 
     // ═══ POLISHED MODE: fixed 15-page Strategic Plan, one section per page ═══
     if (this.mode === "polished" && narrative && narrative.trim()) {
-      this.renderStrategicPlanFixed15(project, sessions, narrative, teamMembers);
+      this.spCover = cover;
+      await this.renderStrategicPlanFixed15(project, sessions, narrative, teamMembers);
       return this.doc;
     }
 
@@ -1748,7 +1752,148 @@ class PdfBuilder {
     return null;
   }
 
-  private renderStrategicPlanFixed15(
+  private parseExecutiveSummaryParagraphs(markdown: string): string[] {
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    if (!raw) return [];
+
+    const paragraphs: string[] = [];
+    for (const chunk of raw.split(/\n{2,}/)) {
+      const lines = chunk
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const text = lines
+        .map((line) => {
+          const h3 = line.match(/^###\s+(.+)$/);
+          if (h3) return h3[1];
+          const bullet = line.match(/^\s*([-*•]|\d+\.)\s+(.+)$/);
+          if (bullet) return bullet[2];
+          return line;
+        })
+        .join(" ")
+        .replace(/\*\*/g, "")
+        .replace(/__/g, "")
+        .trim();
+      if (text) paragraphs.push(text);
+    }
+
+    return paragraphs.length ? paragraphs : [raw.replace(/\*\*/g, "").replace(/__/g, "")];
+  }
+
+  private async spRenderExecutiveSummaryPage(
+    markdown: string,
+    pageLabel: number,
+    project: ExportProject,
+    teamMembers: TeamMember[]
+  ) {
+    const leaders = teamMembers.filter((m) => m.role === "care_team_leader");
+    const signatureName =
+      this.spCover?.facilitatorName?.trim() ||
+      leaders[0]?.full_name?.trim() ||
+      leaders[0]?.email ||
+      undefined;
+    const signatureTitle = project.organizations?.name?.trim() || undefined;
+
+    const dataUrl = await renderPdfExecutiveSummaryPageToDataUrl({
+      pageNumber: pageLabel,
+      paragraphs: this.parseExecutiveSummaryParagraphs(markdown),
+      signatureName,
+      signatureTitle,
+      profilePhotoUrl: this.spCover?.coverPhotoDataUrl,
+      footerDate: formatCoverDate(this.spCover),
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private parseStakeholderAnalysisContent(markdown: string): {
+    paragraphs: string[];
+    tableRows: { col1: string; col2: string; col3: string }[];
+  } {
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    const stripMd = (value: string) => value.replace(/\*\*/g, "").replace(/__/g, "").trim();
+    const paragraphs: string[] = [];
+    const tableRows: { col1: string; col2: string; col3: string }[] = [];
+
+    const parseBulletRow = (line: string) => {
+      const text = stripMd(line.replace(/^\s*([-*•]|\d+\.)\s+/, ""));
+      const parts = text.split(/\s*[—–-]\s+/).map((part) => part.trim()).filter(Boolean);
+      if (parts.length >= 3) {
+        return { col1: parts[0], col2: parts[1], col3: parts.slice(2).join(" — ") };
+      }
+      if (parts.length === 2) {
+        return { col1: parts[0], col2: "", col3: parts[1] };
+      }
+      return { col1: text, col2: "", col3: "" };
+    };
+
+    let paraBuffer: string[] = [];
+    const flushPara = () => {
+      if (!paraBuffer.length) return;
+      paragraphs.push(stripMd(paraBuffer.join(" ")));
+      paraBuffer = [];
+    };
+
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        flushPara();
+        continue;
+      }
+      if (trimmed.startsWith("|") || /^[-:| ]+$/.test(trimmed)) continue;
+      if (trimmed.startsWith("###")) {
+        flushPara();
+        tableRows.push({ col1: stripMd(trimmed.replace(/^###\s+/, "")), col2: "", col3: "" });
+        continue;
+      }
+      const bullet = trimmed.match(/^\s*([-*•]|\d+\.)\s+(.+)$/);
+      if (bullet) {
+        flushPara();
+        tableRows.push(parseBulletRow(trimmed));
+        continue;
+      }
+      paraBuffer.push(trimmed);
+    }
+    flushPara();
+
+    if (!paragraphs.length && !tableRows.length && raw) {
+      paragraphs.push(stripMd(raw));
+    }
+
+    return { paragraphs, tableRows };
+  }
+
+  private async spRenderStakeholderAnalysisPage(markdown: string, pageLabel: number) {
+    const { paragraphs, tableRows } = this.parseStakeholderAnalysisContent(markdown);
+
+    const dataUrl = await renderPdfStakeholderAnalysisPageToDataUrl({
+      pageNumber: pageLabel,
+      paragraphs,
+      tableRows,
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private async renderStrategicPlanFixed15(
     project: ExportProject,
     sessions: ExportSession[],
     narrative: string,
@@ -1873,6 +2018,19 @@ class PdfBuilder {
       { bannerTitle: "Implementation Roadmap", narrativeKey: "implementation", page: 11 },
     ];
     for (const s of aiPages) {
+      if (s.page === 5) {
+        await this.spRenderExecutiveSummaryPage(
+          sectionBody(s.narrativeKey),
+          s.page,
+          project,
+          teamMembers
+        );
+        continue;
+      }
+      if (s.page === 8) {
+        await this.spRenderStakeholderAnalysisPage(sectionBody(s.narrativeKey), s.page);
+        continue;
+      }
       this.spStartSectionPage(s.bannerTitle, s.page);
       this.spRenderFittedBody(sectionBody(s.narrativeKey));
     }

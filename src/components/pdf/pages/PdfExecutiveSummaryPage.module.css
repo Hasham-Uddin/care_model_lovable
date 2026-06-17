@@ -1,0 +1,131 @@
+.page {
+  --navy: #001a57;
+  --text-dark: #1a1a1a;
+  --text-muted: #4a4a4a;
+  --white: #ffffff;
+  --side-padding: 52px;
+  --header-height: 204px;
+
+  display: flex;
+  flex-direction: column;
+  width: 816px;
+  height: 1056px;
+  overflow: hidden;
+  background: var(--white);
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.pageHeader {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  height: var(--header-height);
+  padding: 0 var(--side-padding) 30px;
+  background: var(--navy);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--white);
+}
+
+.pageNumber {
+  position: absolute;
+  top: 30px;
+  right: var(--side-padding);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--white);
+  text-transform: uppercase;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 32px var(--side-padding) 0;
+}
+
+.bodyText {
+  margin: 0 0 16px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.65;
+  color: var(--text-dark);
+  text-align: justify;
+}
+
+.bodyText:last-of-type {
+  margin-bottom: 0;
+}
+
+.bottomSection {
+  margin-top: auto;
+  padding-bottom: 0;
+}
+
+.signatureBlock {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  margin-top: 20px;
+  margin-bottom: 28px;
+}
+
+.signatureName {
+  margin: 0 0 4px;
+  font-family: "Great Vibes", cursive;
+  font-size: 38px;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--text-dark);
+}
+
+.signatureTitle {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.profilePhoto {
+  display: block;
+  width: 110px;
+  height: 130px;
+  object-fit: cover;
+  object-position: center 15%;
+  flex-shrink: 0;
+  -webkit-mask-image: radial-gradient(ellipse 85% 90% at 50% 40%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 85% 90% at 50% 40%, #000 55%, transparent 100%);
+}
+
+.pageFooter {
+  flex-shrink: 0;
+  padding: 0 0 42px;
+  text-align: left;
+}
+
+.footerLine {
+  width: 87%;
+  height: 4px;
+  background: var(--navy);
+  margin: 0 0 12px;
+}
+
+.footerDate {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+  text-transform: uppercase;
+  text-align: left;
+}

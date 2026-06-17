@@ -103,6 +103,14 @@ const CreateProject = () => {
 
       if (projectError) throw projectError;
 
+      // Facilitator is the default CARE Team Leader on the project roster
+      const { error: memberError } = await supabase.from("project_members").insert({
+        project_id: project.id,
+        user_id: user.id,
+        role: "care_team_leader",
+      });
+      if (memberError) throw memberError;
+
       // Create 12 sessions
       const sessionsToCreate = SESSION_NAMES.map((name, index) => ({
         project_id: project.id,
