@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local reference / design assets (not part of Lovable app)
+docs/
+html-pdf-version/
