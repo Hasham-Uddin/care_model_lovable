@@ -33,6 +33,12 @@
   color: var(--white);
 }
 
+.pageTitleLong {
+  font-size: 28px;
+  line-height: 1.15;
+  max-width: 72%;
+}
+
 .pageNumber {
   position: absolute;
   top: 30px;

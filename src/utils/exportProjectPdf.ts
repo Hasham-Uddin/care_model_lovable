@@ -13,7 +13,15 @@ import {
   renderPdfCoverPageToDataUrl,
 } from "@/utils/renderPdfCoverPage.tsx";
 import { renderPdfExecutiveSummaryPageToDataUrl } from "@/utils/renderPdfExecutiveSummaryPage.tsx";
+import { renderPdfMissionVisionPageToDataUrl } from "@/utils/renderPdfMissionVisionPage.tsx";
+import { renderPdfCommunityAssessmentPageToDataUrl } from "@/utils/renderPdfCommunityAssessmentPage.tsx";
+import { renderPdfProblemFramingPageToDataUrl } from "@/utils/renderPdfProblemFramingPage.tsx";
 import { renderPdfStakeholderAnalysisPageToDataUrl } from "@/utils/renderPdfStakeholderAnalysisPage.tsx";
+import { renderPdfProposedSolutionsPageToDataUrl } from "@/utils/renderPdfProposedSolutionsPage.tsx";
+import { renderPdfImplementationRoadmapPageToDataUrl } from "@/utils/renderPdfImplementationRoadmapPage.tsx";
+import { renderPdfMeasurementPageToDataUrl } from "@/utils/renderPdfMeasurementPage.tsx";
+import { renderPdfTeamPageToDataUrl } from "@/utils/renderPdfTeamPage.tsx";
+import { renderPdfClosingPageToDataUrl } from "@/utils/renderPdfClosingPage.tsx";
 
 // Brand colors (MEASURE brand)
 const COLORS = {
@@ -458,7 +466,7 @@ class PdfBuilder {
     // ═══ POLISHED MODE: fixed 15-page Strategic Plan, one section per page ═══
     if (this.mode === "polished" && narrative && narrative.trim()) {
       this.spCover = cover;
-      await this.renderStrategicPlanFixed15(project, sessions, narrative, teamMembers);
+      await this.renderStrategicPlanFixed15(project, sessions, narrative, teamMembers, artifacts);
       return this.doc;
     }
 
@@ -1787,32 +1795,699 @@ class PdfBuilder {
     return paragraphs.length ? paragraphs : [raw.replace(/\*\*/g, "").replace(/__/g, "")];
   }
 
-  private async spRenderExecutiveSummaryPage(
+  private deriveVisionFallback(...sections: (string | undefined)[]): string {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    for (const section of sections) {
+      const text = String(section ?? "").trim();
+      if (!text || text === PLACEHOLDER) continue;
+      const paragraphs = this.parseExecutiveSummaryParagraphs(text);
+      const candidate = paragraphs.find((p) => p.length >= 80) || paragraphs[0];
+      if (candidate?.trim()) return candidate.trim();
+    }
+    return "";
+  }
+
+  private parseMissionVisionContent(
+    markdown: string,
+    statedMissionFromDb: string,
+    narrativeFallbacks?: { solutions?: string; problem?: string; assessment?: string }
+  ): { statedMission: string; vision: string; strategicAlignment: string } {
+    const stripMd = (value: string) =>
+      value.replace(/\*\*/g, "").replace(/__/g, "").replace(/\s+/g, " ").trim();
+
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    const subsection = (aliases: string[]) => {
+      const normalizedAliases = aliases.map((a) => a.toLowerCase());
+      const lines = raw.split("\n");
+      let capturing = false;
+      let buffer: string[] = [];
+
+      const flush = () => {
+        const text = stripMd(buffer.join(" ").trim());
+        buffer = [];
+        capturing = false;
+        return text;
+      };
+
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)$/);
+        if (h3) {
+          if (capturing) return flush();
+          const title = h3[1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+          if (normalizedAliases.some((alias) => title === alias.toLowerCase() || title.includes(alias.toLowerCase()))) {
+            capturing = true;
+          }
+          continue;
+        }
+        if (capturing && line.trim()) buffer.push(line.trim());
+      }
+      if (capturing) return flush();
+      return "";
+    };
+
+    let vision = subsection([
+      "Our Vision",
+      "Vision",
+      "Organizational Vision",
+    ]);
+    let strategicAlignment = subsection([
+      "Strategic Alignment",
+      "Advancing Our Mission",
+      "How This Plan Advances Our Mission",
+      "Strategic Focus",
+    ]);
+
+    let statedMission =
+      statedMissionFromDb.trim() ||
+      subsection(["Our Mission", "Mission Statement", "Stated Mission"]);
+
+    const paragraphs = this.parseExecutiveSummaryParagraphs(raw);
+
+    if (!vision && !strategicAlignment && paragraphs.length >= 2) {
+      vision = paragraphs[0];
+      strategicAlignment = paragraphs[1];
+    } else if (!vision && !strategicAlignment && paragraphs.length === 1) {
+      if (statedMission) {
+        strategicAlignment = paragraphs[0];
+      } else {
+        statedMission = paragraphs[0];
+      }
+    } else {
+      if (!vision && paragraphs[0]) vision = paragraphs[0];
+      if (!strategicAlignment && paragraphs[1]) strategicAlignment = paragraphs[1];
+    }
+
+    if (!vision && !strategicAlignment && !statedMission && raw) {
+      statedMission = stripMd(raw);
+    }
+
+    if (!vision?.trim()) {
+      vision = this.deriveVisionFallback(
+        narrativeFallbacks?.solutions,
+        narrativeFallbacks?.problem,
+        narrativeFallbacks?.assessment
+      );
+    }
+
+    return { statedMission, vision, strategicAlignment };
+  }
+
+  private async spRenderMissionVisionPage(
     markdown: string,
     pageLabel: number,
     project: ExportProject,
-    teamMembers: TeamMember[]
+    narrativeFallbacks?: { solutions?: string; problem?: string; assessment?: string }
   ) {
-    const leaders = teamMembers.filter((m) => m.role === "care_team_leader");
-    const signatureName =
-      this.spCover?.facilitatorName?.trim() ||
-      leaders[0]?.full_name?.trim() ||
-      leaders[0]?.email ||
-      undefined;
-    const signatureTitle = project.organizations?.name?.trim() || undefined;
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const statedMissionFromDb = project.organizations?.mission?.trim() || "";
+    const { statedMission, vision, strategicAlignment } = this.parseMissionVisionContent(
+      markdown,
+      statedMissionFromDb,
+      narrativeFallbacks
+    );
 
-    const dataUrl = await renderPdfExecutiveSummaryPageToDataUrl({
+    const dataUrl = await renderPdfMissionVisionPageToDataUrl({
       pageNumber: pageLabel,
-      paragraphs: this.parseExecutiveSummaryParagraphs(markdown),
-      signatureName,
-      signatureTitle,
-      profilePhotoUrl: this.spCover?.coverPhotoDataUrl,
+      organizationName: project.organizations?.name?.trim(),
+      statedMission: statedMission || PLACEHOLDER,
+      vision: vision || PLACEHOLDER,
+      strategicAlignment: strategicAlignment || PLACEHOLDER,
+      orgLogoUrl: this.spCover?.orgLogoDataUrl,
       footerDate: formatCoverDate(this.spCover),
     });
 
     this.doc.addPage();
     this.pageNum++;
     this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private parseAssessmentContent(markdown: string): {
+    communityLandscape: string;
+    populationServed: string;
+    baselineInsights: string;
+    historicalContext: string;
+  } {
+    const stripMd = (value: string) =>
+      value.replace(/\*\*/g, "").replace(/__/g, "").replace(/\s+/g, " ").trim();
+
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    const subsection = (aliases: string[]) => {
+      const normalizedAliases = aliases.map((a) => a.toLowerCase());
+      const lines = raw.split("\n");
+      let capturing = false;
+      let buffer: string[] = [];
+
+      const flush = () => {
+        const text = stripMd(buffer.join(" ").trim());
+        buffer = [];
+        capturing = false;
+        return text;
+      };
+
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)$/);
+        if (h3) {
+          if (capturing) return flush();
+          const title = h3[1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+          if (normalizedAliases.some((alias) => title === alias.toLowerCase() || title.includes(alias.toLowerCase()))) {
+            capturing = true;
+          }
+          continue;
+        }
+        if (capturing && line.trim()) buffer.push(line.trim());
+      }
+      if (capturing) return flush();
+      return "";
+    };
+
+    let communityLandscape = subsection([
+      "Community Landscape",
+      "Community Context",
+      "Context",
+      "Geographic Context",
+    ]);
+    let populationServed = subsection([
+      "Population Served",
+      "Who We Serve",
+      "Community Served",
+      "Demographics",
+      "People Affected",
+    ]);
+    let baselineInsights = subsection([
+      "Baseline Insights",
+      "Data Insights",
+      "Key Insights",
+      "Baseline Data",
+      "Data & Insights",
+    ]);
+    let historicalContext = subsection([
+      "Historical Context",
+      "Historical Framing",
+      "History",
+      "Past Conditions",
+    ]);
+
+    const paragraphs = this.parseExecutiveSummaryParagraphs(raw);
+
+    if (!communityLandscape && !populationServed && !baselineInsights && !historicalContext) {
+      if (paragraphs.length >= 4) {
+        [communityLandscape, populationServed, baselineInsights, historicalContext] = paragraphs.slice(0, 4);
+      } else if (paragraphs.length === 3) {
+        [communityLandscape, populationServed, baselineInsights] = paragraphs;
+      } else if (paragraphs.length === 2) {
+        communityLandscape = paragraphs[0];
+        populationServed = paragraphs[1];
+      } else if (paragraphs.length === 1) {
+        communityLandscape = paragraphs[0];
+      }
+    } else {
+      if (!communityLandscape && paragraphs[0]) communityLandscape = paragraphs[0];
+      if (!populationServed && paragraphs[1]) populationServed = paragraphs[1];
+      if (!baselineInsights && paragraphs[2]) baselineInsights = paragraphs[2];
+      if (!historicalContext && paragraphs[3]) historicalContext = paragraphs[3];
+    }
+
+    if (!communityLandscape && !populationServed && !baselineInsights && !historicalContext && raw) {
+      communityLandscape = stripMd(raw);
+    }
+
+    return { communityLandscape, populationServed, baselineInsights, historicalContext };
+  }
+
+  private getSessionSourceText(session: ExportSession, artifacts: ExportArtifact[]): string {
+    const artifact = artifacts.find((a) => a.session_id === session.id);
+    const refined = artifact?.content?.refined;
+    if (refined && String(refined).trim()) return String(refined).trim();
+    if (session.notes?.trim()) return session.notes.trim();
+    if (session.next_steps?.trim()) return session.next_steps.trim();
+    return "";
+  }
+
+  private buildAssessmentFromSessions(
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    communityLandscape: string;
+    populationServed: string;
+    baselineInsights: string;
+    historicalContext: string;
+  } {
+    const textFor = (sessionNumber: number) => {
+      const session = sessions.find((s) => s.session_number === sessionNumber);
+      return session ? this.getSessionSourceText(session, artifacts) : "";
+    };
+
+    return {
+      communityLandscape: textFor(1),
+      populationServed: textFor(2),
+      baselineInsights: textFor(5) || textFor(2),
+      historicalContext: textFor(3),
+    };
+  }
+
+  private distributeAssessmentFields(
+    fields: {
+      communityLandscape: string;
+      populationServed: string;
+      baselineInsights: string;
+      historicalContext: string;
+    },
+    rawMarkdown: string
+  ): {
+    communityLandscape: string;
+    populationServed: string;
+    baselineInsights: string;
+    historicalContext: string;
+  } {
+    const keys = [
+      "communityLandscape",
+      "populationServed",
+      "baselineInsights",
+      "historicalContext",
+    ] as const;
+    const result = { ...fields };
+    const emptyKeys = keys.filter((key) => !result[key].trim());
+    if (emptyKeys.length === 0) return result;
+
+    const filledTexts = keys.map((key) => result[key].trim()).filter(Boolean);
+    const pool = filledTexts.join("\n\n") || rawMarkdown.trim();
+    if (!pool) return result;
+
+    const paragraphs = this.parseExecutiveSummaryParagraphs(pool);
+    const sentences = paragraphs
+      .flatMap((p) => p.split(/(?<=[.!?])\s+/))
+      .map((s) => s.trim())
+      .filter((s) => s.length > 25);
+
+    if (sentences.length >= emptyKeys.length) {
+      let sentenceIndex = 0;
+      for (const key of emptyKeys) {
+        const chunk: string[] = [];
+        const take = Math.max(1, Math.ceil((sentences.length - sentenceIndex) / emptyKeys.length));
+        for (let i = 0; i < take && sentenceIndex < sentences.length; i++) {
+          chunk.push(sentences[sentenceIndex++]);
+        }
+        result[key] = chunk.join(" ");
+      }
+      return result;
+    }
+
+    if (paragraphs.length >= emptyKeys.length) {
+      emptyKeys.forEach((key, index) => {
+        result[key] = paragraphs[index] || paragraphs[paragraphs.length - 1];
+      });
+      return result;
+    }
+
+    const chunkSize = Math.max(1, Math.ceil(pool.length / emptyKeys.length));
+    emptyKeys.forEach((key, index) => {
+      result[key] = pool.slice(index * chunkSize, (index + 1) * chunkSize).trim();
+    });
+    return result;
+  }
+
+  private deriveAssessmentContent(
+    markdown: string,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    communityLandscape: string;
+    populationServed: string;
+    baselineInsights: string;
+    historicalContext: string;
+  } {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const isPlaceholder = !markdown.trim() || markdown.trim() === PLACEHOLDER;
+
+    let parsed = isPlaceholder
+      ? {
+          communityLandscape: "",
+          populationServed: "",
+          baselineInsights: "",
+          historicalContext: "",
+        }
+      : this.parseAssessmentContent(markdown);
+
+    const sessionFallback = this.buildAssessmentFromSessions(sessions, artifacts);
+    const merged = {
+      communityLandscape: parsed.communityLandscape || sessionFallback.communityLandscape,
+      populationServed: parsed.populationServed || sessionFallback.populationServed,
+      baselineInsights: parsed.baselineInsights || sessionFallback.baselineInsights,
+      historicalContext: parsed.historicalContext || sessionFallback.historicalContext,
+    };
+
+    return this.distributeAssessmentFields(merged, isPlaceholder ? "" : markdown);
+  }
+
+  private cleanAssessmentDisplayText(text: string): string {
+    return text
+      .replace(/\*\*/g, "")
+      .replace(/__/g, "")
+      .replace(/^#{1,6}\s+/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private deriveAssessmentInsightHighlight(
+    fields: {
+      communityLandscape: string;
+      populationServed: string;
+      baselineInsights: string;
+      historicalContext: string;
+    }
+  ): string {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const pool = [
+      fields.communityLandscape,
+      fields.populationServed,
+      fields.baselineInsights,
+    ]
+      .map((value) => this.cleanAssessmentDisplayText(value))
+      .filter((value) => value && value !== PLACEHOLDER);
+
+    if (!pool.length) return "";
+
+    const combined = pool.join(" ");
+    const sentenceMatch = combined.match(/[^.!?]+[.!?]+/);
+    const highlight = (sentenceMatch?.[0] || combined).trim();
+    return this.fitAssessmentCardText(highlight, 240);
+  }
+
+  private fitAssessmentCardText(text: string, maxChars = 480): string {
+    const cleaned = this.cleanAssessmentDisplayText(text);
+    if (cleaned.length <= maxChars) return cleaned;
+    const slice = cleaned.slice(0, maxChars);
+    const lastSpace = slice.lastIndexOf(" ");
+    const cut = lastSpace > maxChars * 0.6 ? slice.slice(0, lastSpace) : slice;
+    return `${cut.trim()}…`;
+  }
+
+  private async spRenderCommunityAssessmentPage(
+    markdown: string,
+    pageLabel: number,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ) {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const fields = this.deriveAssessmentContent(markdown, sessions, artifacts);
+    const { communityLandscape, populationServed, baselineInsights, historicalContext } = fields;
+
+    const fit = (value: string) =>
+      this.fitAssessmentCardText(value.trim() || PLACEHOLDER);
+
+    const insightHighlight = this.deriveAssessmentInsightHighlight(fields);
+
+    const dataUrl = await renderPdfCommunityAssessmentPageToDataUrl({
+      pageNumber: pageLabel,
+      footerDate: formatCoverDate(this.spCover),
+      insightHighlight,
+      cards: [
+        {
+          label: "Community Landscape",
+          text: fit(communityLandscape),
+          icon: "community",
+        },
+        {
+          label: "Population Served",
+          text: fit(populationServed),
+          icon: "population",
+        },
+        {
+          label: "Baseline Insights",
+          text: fit(baselineInsights),
+          icon: "insights",
+        },
+        {
+          label: "Historical Context",
+          text: fit(historicalContext),
+          icon: "history",
+        },
+      ],
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private parseProblemFramingContent(markdown: string): {
+    problemStatement: string;
+    rootCauses: string;
+    systemicDrivers: string;
+    whyNow: string;
+  } {
+    const stripMd = (value: string) =>
+      value.replace(/\*\*/g, "").replace(/__/g, "").replace(/\s+/g, " ").trim();
+
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    const subsection = (aliases: string[]) => {
+      const normalizedAliases = aliases.map((a) => a.toLowerCase());
+      const lines = raw.split("\n");
+      let capturing = false;
+      let buffer: string[] = [];
+
+      const flush = () => {
+        const text = stripMd(buffer.join(" ").trim());
+        buffer = [];
+        capturing = false;
+        return text;
+      };
+
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)$/);
+        if (h3) {
+          if (capturing) return flush();
+          const title = h3[1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+          if (normalizedAliases.some((alias) => title === alias || title.includes(alias))) {
+            capturing = true;
+          }
+          continue;
+        }
+        if (capturing && line.trim()) buffer.push(line.trim());
+      }
+      if (capturing) return flush();
+      return "";
+    };
+
+    let problemStatement = subsection([
+      "Problem Statement",
+      "The Problem",
+      "Core Problem",
+      "Problem Framing",
+    ]);
+    let rootCauses = subsection([
+      "Root Causes",
+      "Root Cause",
+      "Underlying Causes",
+      "Causal Factors",
+    ]);
+    let systemicDrivers = subsection([
+      "Systemic Drivers",
+      "Systemic Factors",
+      "Systemic Framing",
+      "Structural Factors",
+    ]);
+    let whyNow = subsection([
+      "Why Now",
+      "Urgency",
+      "Timing",
+      "Why This Matters Now",
+    ]);
+
+    const paragraphs = this.parseExecutiveSummaryParagraphs(raw);
+
+    if (!problemStatement && !rootCauses && !systemicDrivers && !whyNow) {
+      if (paragraphs.length >= 4) {
+        [problemStatement, rootCauses, systemicDrivers, whyNow] = paragraphs.slice(0, 4);
+      } else if (paragraphs.length === 3) {
+        [problemStatement, rootCauses, systemicDrivers] = paragraphs;
+      } else if (paragraphs.length === 2) {
+        problemStatement = paragraphs[0];
+        rootCauses = paragraphs[1];
+      } else if (paragraphs.length === 1) {
+        problemStatement = paragraphs[0];
+      }
+    } else {
+      if (!problemStatement && paragraphs[0]) problemStatement = paragraphs[0];
+      if (!rootCauses && paragraphs[1]) rootCauses = paragraphs[1];
+      if (!systemicDrivers && paragraphs[2]) systemicDrivers = paragraphs[2];
+      if (!whyNow && paragraphs[3]) whyNow = paragraphs[3];
+    }
+
+    if (!problemStatement && !rootCauses && !systemicDrivers && !whyNow && raw) {
+      problemStatement = stripMd(raw);
+    }
+
+    return { problemStatement, rootCauses, systemicDrivers, whyNow };
+  }
+
+  private buildProblemFramingFromSessions(
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    problemStatement: string;
+    rootCauses: string;
+    systemicDrivers: string;
+    whyNow: string;
+  } {
+    const textFor = (sessionNumber: number) => {
+      const session = sessions.find((s) => s.session_number === sessionNumber);
+      return session ? this.getSessionSourceText(session, artifacts) : "";
+    };
+
+    return {
+      problemStatement: textFor(1),
+      rootCauses: textFor(1),
+      systemicDrivers: textFor(3),
+      whyNow: textFor(3) || textFor(1),
+    };
+  }
+
+  private deriveProblemFramingContent(
+    markdown: string,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    problemStatement: string;
+    rootCauses: string;
+    systemicDrivers: string;
+    whyNow: string;
+  } {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const isPlaceholder = !markdown.trim() || markdown.trim() === PLACEHOLDER;
+
+    let parsed = isPlaceholder
+      ? { problemStatement: "", rootCauses: "", systemicDrivers: "", whyNow: "" }
+      : this.parseProblemFramingContent(markdown);
+
+    const sessionFallback = this.buildProblemFramingFromSessions(sessions, artifacts);
+
+    const merged = {
+      problemStatement: parsed.problemStatement || sessionFallback.problemStatement,
+      rootCauses: parsed.rootCauses || sessionFallback.rootCauses,
+      systemicDrivers: parsed.systemicDrivers || sessionFallback.systemicDrivers,
+      whyNow: parsed.whyNow || sessionFallback.whyNow,
+    };
+
+    if (merged.problemStatement && merged.rootCauses === merged.problemStatement) {
+      const paragraphs = this.parseExecutiveSummaryParagraphs(merged.problemStatement);
+      if (paragraphs.length >= 2) {
+        merged.problemStatement = paragraphs[0];
+        merged.rootCauses = paragraphs[1];
+      }
+    }
+
+    if (merged.systemicDrivers && merged.whyNow === merged.systemicDrivers) {
+      const paragraphs = this.parseExecutiveSummaryParagraphs(merged.systemicDrivers);
+      if (paragraphs.length >= 2) {
+        merged.systemicDrivers = paragraphs[0];
+        merged.whyNow = paragraphs[1];
+      }
+    }
+
+    return {
+      problemStatement: merged.problemStatement || PLACEHOLDER,
+      rootCauses: merged.rootCauses || merged.problemStatement || PLACEHOLDER,
+      systemicDrivers: merged.systemicDrivers || PLACEHOLDER,
+      whyNow: merged.whyNow || PLACEHOLDER,
+    };
+  }
+
+  private async spRenderProblemFramingPage(
+    markdown: string,
+    pageLabel: number,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ) {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const fields = this.deriveProblemFramingContent(markdown, sessions, artifacts);
+    const fit = (value: string, max = 520) =>
+      this.fitAssessmentCardText(value.trim() || PLACEHOLDER, max);
+
+    const dataUrl = await renderPdfProblemFramingPageToDataUrl({
+      pageNumber: pageLabel,
+      footerDate: formatCoverDate(this.spCover),
+      problemStatement: fit(fields.problemStatement, 380),
+      rootCauses: fit(fields.rootCauses, 420),
+      systemicDrivers: fit(fields.systemicDrivers, 420),
+      whyNow: fit(fields.whyNow, 320),
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private async spRenderStyledNarrativePage(
+    markdown: string,
+    pageLabel: number,
+    pageTitle: string,
+    project: ExportProject,
+    teamMembers: TeamMember[],
+    options?: { showSignature?: boolean }
+  ) {
+    const showSignature = options?.showSignature ?? true;
+    const leaders = teamMembers.filter((m) => m.role === "care_team_leader");
+    const signatureName = showSignature
+      ? this.spCover?.facilitatorName?.trim() ||
+        leaders[0]?.full_name?.trim() ||
+        leaders[0]?.email ||
+        undefined
+      : undefined;
+    const signatureTitle = showSignature
+      ? project.organizations?.name?.trim() || undefined
+      : undefined;
+
+    const dataUrl = await renderPdfExecutiveSummaryPageToDataUrl({
+      pageTitle,
+      pageNumber: pageLabel,
+      paragraphs: this.parseExecutiveSummaryParagraphs(markdown),
+      showSignature,
+      signatureName,
+      signatureTitle,
+      profilePhotoUrl: showSignature ? this.spCover?.coverPhotoDataUrl : undefined,
+      footerDate: formatCoverDate(this.spCover),
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private async spRenderExecutiveSummaryPage(
+    markdown: string,
+    pageLabel: number,
+    project: ExportProject,
+    teamMembers: TeamMember[]
+  ) {
+    await this.spRenderStyledNarrativePage(
+      markdown,
+      pageLabel,
+      "Executive Summary",
+      project,
+      teamMembers
+    );
   }
 
   private parseStakeholderAnalysisContent(markdown: string): {
@@ -1831,6 +2506,46 @@ class PdfBuilder {
     const paragraphs: string[] = [];
     const tableRows: { col1: string; col2: string; col3: string }[] = [];
 
+    const subsection = (aliases: string[], joinWith: " " | "\n" = " ") => {
+      const normalizedAliases = aliases.map((a) => a.toLowerCase());
+      const lines = raw.split("\n");
+      let capturing = false;
+      let buffer: string[] = [];
+
+      const flush = () => {
+        const text = buffer.map((line) => stripMd(line)).join(joinWith).trim();
+        buffer = [];
+        capturing = false;
+        return text;
+      };
+
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)$/);
+        if (h3) {
+          if (capturing) return flush();
+          const title = h3[1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+          if (normalizedAliases.some((alias) => title === alias || title.includes(alias))) {
+            capturing = true;
+          }
+          continue;
+        }
+        if (capturing && line.trim()) buffer.push(line.trim());
+      }
+      if (capturing) return flush();
+      return "";
+    };
+
+    const engagementStrategy = subsection([
+      "engagement strategy",
+      "engagement approach",
+      "stakeholder engagement",
+      "engagement and strategy",
+    ]);
+    const keyStakeholdersSection = subsection(
+      ["key stakeholders", "stakeholders", "community stakeholders", "invested parties"],
+      "\n"
+    );
+
     const parseBulletRow = (line: string) => {
       const text = stripMd(line.replace(/^\s*([-*•]|\d+\.)\s+/, ""));
       const parts = text.split(/\s*[—–-]\s+/).map((part) => part.trim()).filter(Boolean);
@@ -1842,6 +2557,18 @@ class PdfBuilder {
       }
       return { col1: text, col2: "", col3: "" };
     };
+
+    const parseSectionBullets = (sectionText: string) => {
+      for (const line of sectionText.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const bullet = trimmed.match(/^\s*([-*•]|\d+\.)\s+(.+)$/);
+        if (bullet) tableRows.push(parseBulletRow(trimmed));
+      }
+    };
+
+    if (engagementStrategy) paragraphs.push(engagementStrategy);
+    if (keyStakeholdersSection) parseSectionBullets(keyStakeholdersSection);
 
     let paraBuffer: string[] = [];
     const flushPara = () => {
@@ -1859,13 +2586,18 @@ class PdfBuilder {
       if (trimmed.startsWith("|") || /^[-:| ]+$/.test(trimmed)) continue;
       if (trimmed.startsWith("###")) {
         flushPara();
-        tableRows.push({ col1: stripMd(trimmed.replace(/^###\s+/, "")), col2: "", col3: "" });
+        if (!keyStakeholdersSection) {
+          const title = stripMd(trimmed.replace(/^###\s+/, ""));
+          if (!/engagement/i.test(title)) {
+            tableRows.push({ col1: title, col2: "", col3: "" });
+          }
+        }
         continue;
       }
       const bullet = trimmed.match(/^\s*([-*•]|\d+\.)\s+(.+)$/);
       if (bullet) {
         flushPara();
-        tableRows.push(parseBulletRow(trimmed));
+        if (!keyStakeholdersSection) tableRows.push(parseBulletRow(trimmed));
         continue;
       }
       paraBuffer.push(trimmed);
@@ -1879,13 +2611,1295 @@ class PdfBuilder {
     return { paragraphs, tableRows };
   }
 
-  private async spRenderStakeholderAnalysisPage(markdown: string, pageLabel: number) {
-    const { paragraphs, tableRows } = this.parseStakeholderAnalysisContent(markdown);
+  private detectStakeholderAlignment(
+    text: string
+  ): "ally" | "neutral" | "mixed" | "opposition" | undefined {
+    const value = text.toLowerCase();
+    if (/oppos|resist|against|adversar|blocker/.test(value)) return "opposition";
+    if (/\bmixed\b|persuad|uncertain/.test(value)) return "mixed";
+    if (/\bneutral\b|low interest/.test(value)) return "neutral";
+    if (/ally|allies|support|partner|champion|coalition/.test(value)) return "ally";
+    return undefined;
+  }
+
+  private parseStakeholderCardsFromRows(
+    tableRows: { col1: string; col2: string; col3: string }[]
+  ): {
+    name: string;
+    role: string;
+    engagement: string;
+    alignment?: "ally" | "neutral" | "mixed" | "opposition";
+  }[] {
+    return tableRows
+      .filter((row) => row.col1.trim())
+      .map((row) => {
+        const role = row.col2.trim();
+        const engagement = row.col3.trim() || role;
+        const roleOnly = role && role !== engagement ? role : "";
+        return {
+          name: this.cleanAssessmentDisplayText(row.col1),
+          role: this.cleanAssessmentDisplayText(roleOnly),
+          engagement: this.cleanAssessmentDisplayText(engagement),
+          alignment: this.detectStakeholderAlignment(`${role} ${engagement}`),
+        };
+      });
+  }
+
+  private parseStakeholderCardsFromText(text: string): {
+    name: string;
+    role: string;
+    engagement: string;
+    alignment?: "ally" | "neutral" | "mixed" | "opposition";
+  }[] {
+    const cards: {
+      name: string;
+      role: string;
+      engagement: string;
+      alignment?: "ally" | "neutral" | "mixed" | "opposition";
+    }[] = [];
+
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const bullet = trimmed.match(/^\s*([-*•]|\d+\.)\s+(.+)$/);
+      const content = bullet ? bullet[2] : trimmed;
+      const parts = this.cleanAssessmentDisplayText(content)
+        .split(/\s*[—–-]\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (!parts.length) continue;
+      const name = parts[0];
+      const engagement = parts.length > 1 ? parts.slice(1).join(" — ") : "";
+      cards.push({
+        name,
+        role: parts.length > 2 ? parts[1] : "",
+        engagement: parts.length > 2 ? parts.slice(2).join(" — ") : engagement,
+        alignment: this.detectStakeholderAlignment(engagement || name),
+      });
+    }
+
+    return cards;
+  }
+
+  private buildStakeholdersFromSession(
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    name: string;
+    role: string;
+    engagement: string;
+    alignment?: "ally" | "neutral" | "mixed" | "opposition";
+  }[] {
+    const session = sessions.find((s) => s.session_number === 4);
+    if (!session) return [];
+    const source = this.getSessionSourceText(session, artifacts);
+    if (!source.trim()) return [];
+    return this.parseStakeholderCardsFromText(source).slice(0, 6);
+  }
+
+  private deriveStakeholderContent(
+    markdown: string,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    engagementIntro: string;
+    stakeholders: {
+      name: string;
+      role: string;
+      engagement: string;
+      alignment?: "ally" | "neutral" | "mixed" | "opposition";
+    }[];
+  } {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const isPlaceholder = !markdown.trim() || markdown.trim() === PLACEHOLDER;
+    const parsed = isPlaceholder
+      ? { paragraphs: [] as string[], tableRows: [] as { col1: string; col2: string; col3: string }[] }
+      : this.parseStakeholderAnalysisContent(markdown);
+
+    let engagementIntro = parsed.paragraphs.join(" ").trim();
+    let stakeholders = this.parseStakeholderCardsFromRows(parsed.tableRows);
+
+    if (!stakeholders.length) {
+      stakeholders = this.buildStakeholdersFromSession(sessions, artifacts);
+    }
+
+    if (!engagementIntro && stakeholders.length) {
+      engagementIntro = `This plan maps ${stakeholders.length} key stakeholders and how the CARE Team will engage each group to build alignment and shared ownership.`;
+    }
+
+    if (!engagementIntro) {
+      engagementIntro = isPlaceholder ? PLACEHOLDER : this.cleanAssessmentDisplayText(markdown);
+    }
+
+    if (!stakeholders.length && !isPlaceholder) {
+      stakeholders = this.parseStakeholderCardsFromText(markdown).slice(0, 6);
+    }
+
+    return {
+      engagementIntro: this.fitAssessmentCardText(engagementIntro, 320),
+      stakeholders: stakeholders.slice(0, 6).map((item) => ({
+        ...item,
+        name: this.fitAssessmentCardText(item.name, 80),
+        role: this.fitAssessmentCardText(item.role, 100),
+        engagement: this.fitAssessmentCardText(item.engagement, 220),
+      })),
+    };
+  }
+
+  private deriveStakeholderHighlight(
+    engagementIntro: string,
+    stakeholders: { engagement: string; alignment?: string }[]
+  ): string {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const intro = this.cleanAssessmentDisplayText(engagementIntro);
+    if (intro && intro !== PLACEHOLDER) {
+      const sentence = intro.match(/[^.!?]+[.!?]+/)?.[0] || intro;
+      return this.fitAssessmentCardText(sentence, 240);
+    }
+    const ally = stakeholders.find((item) => item.alignment === "ally");
+    if (ally?.engagement) return this.fitAssessmentCardText(ally.engagement, 240);
+    if (stakeholders[0]?.engagement) return this.fitAssessmentCardText(stakeholders[0].engagement, 240);
+    return "";
+  }
+
+  private normalizeSolutionRating(value: string): "High" | "Medium" | "Low" {
+    const normalized = value.toLowerCase().trim();
+    if (/^low\b/.test(normalized)) return "Low";
+    if (/^med/.test(normalized)) return "Medium";
+    return "High";
+  }
+
+  private defaultSolutionRatings(index: number): {
+    desirability: "High" | "Medium" | "Low";
+    equitably: "High" | "Medium" | "Low";
+    feasibility: "High" | "Medium" | "Low";
+    sustainability: "High" | "Medium" | "Low";
+  } {
+    const presets: Array<{
+      desirability: "High" | "Medium" | "Low";
+      equitably: "High" | "Medium" | "Low";
+      feasibility: "High" | "Medium" | "Low";
+      sustainability: "High" | "Medium" | "Low";
+    }> = [
+      { desirability: "High", equitably: "High", feasibility: "Medium", sustainability: "High" },
+      { desirability: "High", equitably: "High", feasibility: "High", sustainability: "High" },
+      { desirability: "High", equitably: "High", feasibility: "Medium", sustainability: "Medium" },
+      { desirability: "Medium", equitably: "High", feasibility: "High", sustainability: "Medium" },
+    ];
+    return presets[index] ?? presets[presets.length - 1];
+  }
+
+  private extractSolutionRatings(text: string): {
+    desirability?: "High" | "Medium" | "Low";
+    equitably?: "High" | "Medium" | "Low";
+    feasibility?: "High" | "Medium" | "Low";
+    sustainability?: "High" | "Medium" | "Low";
+  } {
+    const pick = (...labels: string[]) => {
+      for (const label of labels) {
+        const match = text.match(new RegExp(`${label}\\s*[:=]?\\s*(high|medium|low)`, "i"));
+        if (match) return this.normalizeSolutionRating(match[1]);
+      }
+      return undefined;
+    };
+    return {
+      desirability: pick("desirability"),
+      equitably: pick("equitably", "equity"),
+      feasibility: pick("feasibility"),
+      sustainability: pick("sustainability"),
+    };
+  }
+
+  private splitSolutionActionAndDescription(content: string): { action: string; description: string } {
+    const cleaned = this.cleanAssessmentDisplayText(content);
+    const bold = content.match(/\*\*([^*]+)\*\*/);
+    if (bold) {
+      const action = bold[1].trim().split(/\s+/)[0].toUpperCase();
+      const description = cleaned
+        .replace(bold[0], "")
+        .replace(/^[—–:-]\s*/, "")
+        .trim();
+      return { action, description };
+    }
+
+    const firstWord = cleaned.split(/\s+/)[0] || "Solution";
+    const action = firstWord.replace(/[^a-zA-Z]/g, "").toUpperCase() || "SOLUTION";
+    const description = cleaned.slice(firstWord.length).trim().replace(/^[—–:-]\s*/, "");
+    return { action, description: description || cleaned };
+  }
+
+  private parseSolutionAlignmentRowsFromTable(raw: string): {
+    action: string;
+    description: string;
+    desirability: "High" | "Medium" | "Low";
+    equitably: "High" | "Medium" | "Low";
+    feasibility: "High" | "Medium" | "Low";
+    sustainability: "High" | "Medium" | "Low";
+    rank: number;
+  }[] {
+    const rows: {
+      action: string;
+      description: string;
+      desirability: "High" | "Medium" | "Low";
+      equitably: "High" | "Medium" | "Low";
+      feasibility: "High" | "Medium" | "Low";
+      sustainability: "High" | "Medium" | "Low";
+      rank: number;
+    }[] = [];
+
+    const lines = raw.split("\n").filter((line) => line.trim().startsWith("|"));
+    if (lines.length < 2) return rows;
+
+    const splitRow = (line: string) =>
+      line
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter((cell, index, arr) => !(index === 0 && cell === "") && !(index === arr.length - 1 && cell === ""));
+
+    const header = splitRow(lines[0]).map((cell) => cell.toLowerCase());
+    const dataLines = lines.slice(1).filter((line) => !/^[-:| ]+$/.test(line.trim()));
+
+    const idx = (aliases: string[]) =>
+      header.findIndex((cell) => aliases.some((alias) => cell.includes(alias)));
+
+    const solutionIdx = idx(["solution"]);
+    const desirabilityIdx = idx(["desirability"]);
+    const equitablyIdx = idx(["equitably", "equity"]);
+    const feasibilityIdx = idx(["feasibility"]);
+    const sustainabilityIdx = idx(["sustainability"]);
+    const rankIdx = idx(["rank"]);
+
+    dataLines.forEach((line, index) => {
+      const cells = splitRow(line);
+      if (!cells.length) return;
+      const solutionCell = cells[solutionIdx >= 0 ? solutionIdx : 0] || "";
+      const { action, description } = this.splitSolutionActionAndDescription(solutionCell);
+      const defaults = this.defaultSolutionRatings(index);
+      const inline = this.extractSolutionRatings(solutionCell);
+      rows.push({
+        action,
+        description,
+        desirability:
+          (desirabilityIdx >= 0 ? this.normalizeSolutionRating(cells[desirabilityIdx] || "") : inline.desirability) ||
+          defaults.desirability,
+        equitably:
+          (equitablyIdx >= 0 ? this.normalizeSolutionRating(cells[equitablyIdx] || "") : inline.equitably) ||
+          defaults.equitably,
+        feasibility:
+          (feasibilityIdx >= 0 ? this.normalizeSolutionRating(cells[feasibilityIdx] || "") : inline.feasibility) ||
+          defaults.feasibility,
+        sustainability:
+          (sustainabilityIdx >= 0
+            ? this.normalizeSolutionRating(cells[sustainabilityIdx] || "")
+            : inline.sustainability) || defaults.sustainability,
+        rank: rankIdx >= 0 ? Number(cells[rankIdx]) || index + 1 : index + 1,
+      });
+    });
+
+    return rows;
+  }
+
+  private parseSolutionAlignmentRowsFromText(text: string): {
+    action: string;
+    description: string;
+    desirability: "High" | "Medium" | "Low";
+    equitably: "High" | "Medium" | "Low";
+    feasibility: "High" | "Medium" | "Low";
+    sustainability: "High" | "Medium" | "Low";
+    rank: number;
+  }[] {
+    const rows: {
+      action: string;
+      description: string;
+      desirability: "High" | "Medium" | "Low";
+      equitably: "High" | "Medium" | "Low";
+      feasibility: "High" | "Medium" | "Low";
+      sustainability: "High" | "Medium" | "Low";
+      rank: number;
+    }[] = [];
+
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const bullet = trimmed.match(/^\s*([-*•]|\d+\.)\s+(.+)$/);
+      const content = bullet ? bullet[2] : trimmed;
+      if (!content || /^#{1,3}\s/.test(content)) continue;
+
+      const { action, description } = this.splitSolutionActionAndDescription(content);
+      const ratings = this.extractSolutionRatings(content);
+      const defaults = this.defaultSolutionRatings(rows.length);
+      rows.push({
+        action,
+        description: description.replace(/\([^)]*desirability[^)]*\)/gi, "").trim(),
+        desirability: ratings.desirability || defaults.desirability,
+        equitably: ratings.equitably || defaults.equitably,
+        feasibility: ratings.feasibility || defaults.feasibility,
+        sustainability: ratings.sustainability || defaults.sustainability,
+        rank: rows.length + 1,
+      });
+    }
+
+    return rows;
+  }
+
+  private parseSolutionsAlignmentContent(markdown: string): {
+    approachIntro: string;
+    solutions: {
+      action: string;
+      description: string;
+      desirability: "High" | "Medium" | "Low";
+      equitably: "High" | "Medium" | "Low";
+      feasibility: "High" | "Medium" | "Low";
+      sustainability: "High" | "Medium" | "Low";
+      rank: number;
+    }[];
+  } {
+    const stripMd = (value: string) =>
+      value.replace(/\*\*/g, "").replace(/__/g, "").replace(/\s+/g, " ").trim();
+
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    const subsection = (aliases: string[]) => {
+      const normalizedAliases = aliases.map((a) => a.toLowerCase());
+      const lines = raw.split("\n");
+      let capturing = false;
+      let buffer: string[] = [];
+
+      const flush = () => {
+        const text = buffer.join("\n").trim();
+        buffer = [];
+        capturing = false;
+        return text;
+      };
+
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)$/);
+        if (h3) {
+          if (capturing) return flush();
+          const title = h3[1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+          if (normalizedAliases.some((alias) => title === alias || title.includes(alias))) {
+            capturing = true;
+          }
+          continue;
+        }
+        if (capturing) buffer.push(line);
+      }
+      if (capturing) return flush();
+      return "";
+    };
+
+    const approachSection = subsection([
+      "Strategic Approach",
+      "Solution Approach",
+      "Approach",
+      "Solutions Alignment",
+    ]);
+    const solutionsSection = subsection([
+      "Core Solutions",
+      "Proposed Solutions",
+      "Solution Alignment",
+      "Solutions",
+      "Ranked Solutions",
+    ]);
+
+    let approachIntro = "";
+    let solutions: {
+      action: string;
+      description: string;
+      desirability: "High" | "Medium" | "Low";
+      equitably: "High" | "Medium" | "Low";
+      feasibility: "High" | "Medium" | "Low";
+      sustainability: "High" | "Medium" | "Low";
+      rank: number;
+    }[] = [];
+
+    if (approachSection) {
+      const prose = approachSection
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("|") && !/^\s*([-*•]|\d+\.)\s+/.test(line));
+      approachIntro = stripMd(prose.join(" "));
+    }
+
+    const tableSource = solutionsSection || raw;
+    solutions = this.parseSolutionAlignmentRowsFromTable(tableSource);
+    if (!solutions.length) {
+      solutions = this.parseSolutionAlignmentRowsFromText(solutionsSection || raw);
+    }
+
+    if (!approachIntro) {
+      const paragraphs = this.parseExecutiveSummaryParagraphs(raw);
+      if (paragraphs.length) approachIntro = paragraphs[0];
+    }
+
+    return { approachIntro, solutions };
+  }
+
+  private buildSolutionsAlignmentFromSessions(
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    approachIntro: string;
+    solutions: {
+      action: string;
+      description: string;
+      desirability: "High" | "Medium" | "Low";
+      equitably: "High" | "Medium" | "Low";
+      feasibility: "High" | "Medium" | "Low";
+      sustainability: "High" | "Medium" | "Low";
+      rank: number;
+    }[];
+  } {
+    const session7 = sessions.find((s) => s.session_number === 7);
+    const source7 = session7 ? this.getSessionSourceText(session7, artifacts) : "";
+    const solutions = this.parseSolutionAlignmentRowsFromText(source7).slice(0, 4);
+
+    return {
+      approachIntro:
+        "Solutions Alignment is the process of selecting the best strategies to address the community's needs. The CARE Team evaluated each solution against desirability, equity, feasibility, and sustainability to identify community-first priorities.",
+      solutions,
+    };
+  }
+
+  private deriveSolutionsAlignmentContent(
+    markdown: string,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    approachIntro: string;
+    solutions: {
+      action: string;
+      description: string;
+      desirability: "High" | "Medium" | "Low";
+      equitably: "High" | "Medium" | "Low";
+      feasibility: "High" | "Medium" | "Low";
+      sustainability: "High" | "Medium" | "Low";
+      rank: number;
+    }[];
+  } {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const isPlaceholder = !markdown.trim() || markdown.trim() === PLACEHOLDER;
+
+    const parsed = isPlaceholder
+      ? { approachIntro: "", solutions: [] as ReturnType<typeof this.parseSolutionAlignmentRowsFromText> }
+      : this.parseSolutionsAlignmentContent(markdown);
+
+    const sessionFallback = this.buildSolutionsAlignmentFromSessions(sessions, artifacts);
+
+    let approachIntro = parsed.approachIntro || sessionFallback.approachIntro;
+    let solutions = parsed.solutions.length ? parsed.solutions : sessionFallback.solutions;
+
+    if (!approachIntro) {
+      approachIntro = isPlaceholder
+        ? PLACEHOLDER
+        : "Solutions Alignment is the process of selecting the best strategies to address the community's needs. The CARE Team evaluated each solution against desirability, equity, feasibility, and sustainability.";
+    }
+
+    if (!solutions.length) {
+      solutions = [
+        {
+          action: "ADVOCATE",
+          description: PLACEHOLDER,
+          desirability: "High",
+          equitably: "High",
+          feasibility: "Medium",
+          sustainability: "High",
+          rank: 1,
+        },
+      ];
+    }
+
+    return {
+      approachIntro: this.fitAssessmentCardText(approachIntro, 520),
+      solutions: solutions.slice(0, 4).map((row, index) => ({
+        ...row,
+        action: this.fitAssessmentCardText(row.action, 24),
+        description: this.fitAssessmentCardText(row.description, index === 0 ? 280 : 240),
+        rank: row.rank || index + 1,
+      })),
+    };
+  }
+
+  private async spRenderProposedSolutionsPage(
+    markdown: string,
+    pageLabel: number,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ) {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const { approachIntro, solutions } = this.deriveSolutionsAlignmentContent(
+      markdown,
+      sessions,
+      artifacts
+    );
+
+    const dataUrl = await renderPdfProposedSolutionsPageToDataUrl({
+      pageNumber: pageLabel,
+      footerDate: formatCoverDate(this.spCover),
+      approachIntro: approachIntro || PLACEHOLDER,
+      solutions,
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private parseImplementationRoadmapContent(markdown: string): {
+    roadmapOverview: string;
+    communityAssets: string;
+    timelineRoles: string;
+    dataAccountability: string;
+  } {
+    const stripMd = (value: string) =>
+      value.replace(/\*\*/g, "").replace(/__/g, "").replace(/\s+/g, " ").trim();
+
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    const subsection = (aliases: string[]) => {
+      const normalizedAliases = aliases.map((a) => a.toLowerCase());
+      const lines = raw.split("\n");
+      let capturing = false;
+      let buffer: string[] = [];
+
+      const flush = () => {
+        const text = stripMd(buffer.join(" ").trim());
+        buffer = [];
+        capturing = false;
+        return text;
+      };
+
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)$/);
+        if (h3) {
+          if (capturing) return flush();
+          const title = h3[1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+          if (normalizedAliases.some((alias) => title === alias || title.includes(alias))) {
+            capturing = true;
+          }
+          continue;
+        }
+        if (capturing && line.trim()) buffer.push(line.trim());
+      }
+      if (capturing) return flush();
+      return "";
+    };
+
+    let roadmapOverview = subsection([
+      "Roadmap Overview",
+      "Implementation Overview",
+      "Overview",
+      "Implementation Roadmap",
+      "Our Approach",
+    ]);
+    let communityAssets = subsection([
+      "Community Assets",
+      "Assets & Capacity",
+      "Community Assets & Capacity",
+      "Mobilizing Assets",
+    ]);
+    let timelineRoles = subsection([
+      "Timeline & Roles",
+      "Timeline and Roles",
+      "Timeline",
+      "Roles & Responsibilities",
+      "Who Does What",
+      "Execution Plan",
+    ]);
+    let dataAccountability = subsection([
+      "Data & Accountability",
+      "Data and Accountability",
+      "Data Collection",
+      "Measurement Plan",
+      "Accountability",
+    ]);
+
+    const paragraphs = this.parseExecutiveSummaryParagraphs(raw);
+
+    if (!roadmapOverview && !communityAssets && !timelineRoles && !dataAccountability) {
+      if (paragraphs.length >= 4) {
+        [roadmapOverview, communityAssets, timelineRoles, dataAccountability] = paragraphs.slice(0, 4);
+      } else if (paragraphs.length === 3) {
+        [roadmapOverview, communityAssets, timelineRoles] = paragraphs;
+      } else if (paragraphs.length === 2) {
+        roadmapOverview = paragraphs[0];
+        communityAssets = paragraphs[1];
+      } else if (paragraphs.length === 1) {
+        roadmapOverview = paragraphs[0];
+      }
+    } else {
+      if (!roadmapOverview && paragraphs[0]) roadmapOverview = paragraphs[0];
+      if (!communityAssets && paragraphs[1]) communityAssets = paragraphs[1];
+      if (!timelineRoles && paragraphs[2]) timelineRoles = paragraphs[2];
+      if (!dataAccountability && paragraphs[3]) dataAccountability = paragraphs[3];
+    }
+
+    if (!roadmapOverview && !communityAssets && !timelineRoles && !dataAccountability && raw) {
+      roadmapOverview = stripMd(raw);
+    }
+
+    return { roadmapOverview, communityAssets, timelineRoles, dataAccountability };
+  }
+
+  private buildImplementationRoadmapFromSessions(
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    roadmapOverview: string;
+    communityAssets: string;
+    timelineRoles: string;
+    dataAccountability: string;
+  } {
+    const textFor = (sessionNumber: number) => {
+      const session = sessions.find((s) => s.session_number === sessionNumber);
+      return session ? this.getSessionSourceText(session, artifacts) : "";
+    };
+
+    return {
+      roadmapOverview: "",
+      communityAssets: textFor(6),
+      timelineRoles: textFor(8) || textFor(9),
+      dataAccountability: textFor(11),
+    };
+  }
+
+  private deriveImplementationRoadmapContent(
+    markdown: string,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    roadmapOverview: string;
+    communityAssets: string;
+    timelineRoles: string;
+    dataAccountability: string;
+  } {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const isPlaceholder = !markdown.trim() || markdown.trim() === PLACEHOLDER;
+
+    let parsed = isPlaceholder
+      ? { roadmapOverview: "", communityAssets: "", timelineRoles: "", dataAccountability: "" }
+      : this.parseImplementationRoadmapContent(markdown);
+
+    const sessionFallback = this.buildImplementationRoadmapFromSessions(sessions, artifacts);
+
+    const merged = {
+      roadmapOverview: parsed.roadmapOverview || sessionFallback.roadmapOverview,
+      communityAssets: parsed.communityAssets || sessionFallback.communityAssets,
+      timelineRoles: parsed.timelineRoles || sessionFallback.timelineRoles,
+      dataAccountability: parsed.dataAccountability || sessionFallback.dataAccountability,
+    };
+
+    if (!merged.roadmapOverview) {
+      merged.roadmapOverview =
+        "This roadmap translates community priorities into action — mobilizing existing assets, assigning clear roles, and building accountability through transparent data practices.";
+    }
+
+    if (merged.communityAssets && merged.timelineRoles === merged.communityAssets) {
+      const paragraphs = this.parseExecutiveSummaryParagraphs(merged.communityAssets);
+      if (paragraphs.length >= 2) {
+        merged.communityAssets = paragraphs[0];
+        merged.timelineRoles = paragraphs[1];
+      }
+    }
+
+    if (merged.dataAccountability && merged.timelineRoles === merged.dataAccountability) {
+      const paragraphs = this.parseExecutiveSummaryParagraphs(merged.dataAccountability);
+      if (paragraphs.length >= 2) {
+        merged.timelineRoles = paragraphs[0];
+        merged.dataAccountability = paragraphs[1];
+      }
+    }
+
+    return {
+      roadmapOverview: merged.roadmapOverview || PLACEHOLDER,
+      communityAssets: merged.communityAssets || PLACEHOLDER,
+      timelineRoles: merged.timelineRoles || merged.communityAssets || PLACEHOLDER,
+      dataAccountability: merged.dataAccountability || PLACEHOLDER,
+    };
+  }
+
+  private async spRenderImplementationRoadmapPage(
+    markdown: string,
+    pageLabel: number,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ) {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const fields = this.deriveImplementationRoadmapContent(markdown, sessions, artifacts);
+    const fit = (value: string, max = 520) =>
+      this.fitAssessmentCardText(value.trim() || PLACEHOLDER, max);
+
+    const dataUrl = await renderPdfImplementationRoadmapPageToDataUrl({
+      pageNumber: pageLabel,
+      footerDate: formatCoverDate(this.spCover),
+      roadmapOverview: fit(fields.roadmapOverview, 380),
+      communityAssets: fit(fields.communityAssets, 420),
+      timelineRoles: fit(fields.timelineRoles, 420),
+      dataAccountability: fit(fields.dataAccountability, 320),
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private splitMetricLabelAndDescription(content: string): { metric: string; description: string } {
+    const cleaned = this.cleanAssessmentDisplayText(content);
+    const bold = content.match(/\*\*([^*]+)\*\*/);
+    if (bold) {
+      const words = bold[1].trim().split(/\s+/);
+      const metric = (words.length > 1 ? words.slice(0, 2).join(" ") : words[0] || "METRIC").toUpperCase();
+      const description = cleaned
+        .replace(bold[0], "")
+        .replace(/^[—–:-]\s*/, "")
+        .trim();
+      return { metric, description };
+    }
+
+    const dashParts = cleaned
+      .split(/\s*[—–-]\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (dashParts.length >= 2) {
+      const metric = dashParts[0].split(/\s+/).slice(0, 2).join(" ").toUpperCase();
+      return { metric, description: dashParts.slice(1).join(" — ") };
+    }
+
+    const words = cleaned.split(/\s+/);
+    const metric = words.slice(0, 2).join(" ").toUpperCase() || "METRIC";
+    const description = words.slice(2).join(" ");
+    return { metric, description: description || cleaned };
+  }
+
+  private extractMetricFields(text: string): {
+    indicator?: string;
+    target?: string;
+    method?: string;
+    frequency?: string;
+  } {
+    const pick = (patterns: RegExp[]) => {
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match?.[1]) return this.cleanAssessmentDisplayText(match[1]);
+      }
+      return undefined;
+    };
+
+    return {
+      indicator: pick([
+        /indicator\s*[:=]\s*([^—–|\n]+)/i,
+        /success signal\s*[:=]\s*([^—–|\n]+)/i,
+      ]),
+      target: pick([
+        /target\s*[:=]\s*([^—–|\n]+)/i,
+        /goal\s*[:=]\s*([^—–|\n]+)/i,
+      ]),
+      method: pick([
+        /(?:method|tracked via|how)\s*[:=]\s*([^—–|\n]+)/i,
+        /captured via\s*[:=]\s*([^—–|\n]+)/i,
+      ]),
+      frequency: pick([
+        /(?:frequency|when)\s*[:=]\s*([^—–|\n]+)/i,
+        /(?:schedule|timing)\s*[:=]\s*([^—–|\n]+)/i,
+      ]),
+    };
+  }
+
+  private defaultMetricFields(index: number): {
+    indicator: string;
+    target: string;
+    method: string;
+    frequency: string;
+  } {
+    const presets = [
+      {
+        indicator: "Participation trend",
+        target: "Increase over baseline",
+        method: "Sign-in logs",
+        frequency: "Each session",
+      },
+      {
+        indicator: "Skill improvement",
+        target: "Measurable gain",
+        method: "Pre/post assessment",
+        frequency: "Quarterly",
+      },
+      {
+        indicator: "Community voice",
+        target: "Positive feedback",
+        method: "Check-in survey",
+        frequency: "Monthly",
+      },
+      {
+        indicator: "Sustained engagement",
+        target: "80% retention",
+        method: "Facilitator records",
+        frequency: "Ongoing",
+      },
+    ];
+    return presets[index] ?? presets[presets.length - 1];
+  }
+
+  private parseMeasurementRowsFromTable(raw: string): {
+    metric: string;
+    description: string;
+    indicator: string;
+    target: string;
+    method: string;
+    frequency: string;
+    rank: number;
+  }[] {
+    const rows: {
+      metric: string;
+      description: string;
+      indicator: string;
+      target: string;
+      method: string;
+      frequency: string;
+      rank: number;
+    }[] = [];
+
+    const lines = raw.split("\n").filter((line) => line.trim().startsWith("|"));
+    if (lines.length < 2) return rows;
+
+    const splitRow = (line: string) =>
+      line
+        .split("|")
+        .map((cell) => cell.trim())
+        .filter((cell, index, arr) => !(index === 0 && cell === "") && !(index === arr.length - 1 && cell === ""));
+
+    const header = splitRow(lines[0]).map((cell) => cell.toLowerCase());
+    const dataLines = lines.slice(1).filter((line) => !/^[-:| ]+$/.test(line.trim()));
+
+    const idx = (aliases: string[]) =>
+      header.findIndex((cell) => aliases.some((alias) => cell.includes(alias)));
+
+    const metricIdx = idx(["metric"]);
+    const indicatorIdx = idx(["indicator"]);
+    const targetIdx = idx(["target"]);
+    const methodIdx = idx(["method", "how"]);
+    const frequencyIdx = idx(["frequency", "when", "timing"]);
+    const rankIdx = idx(["rank", "priority"]);
+
+    dataLines.forEach((line, index) => {
+      const cells = splitRow(line);
+      if (!cells.length) return;
+      const metricCell = cells[metricIdx >= 0 ? metricIdx : 0] || "";
+      const { metric, description } = this.splitMetricLabelAndDescription(metricCell);
+      const inline = this.extractMetricFields(metricCell);
+      const defaults = this.defaultMetricFields(index);
+      rows.push({
+        metric,
+        description,
+        indicator:
+          (indicatorIdx >= 0 ? this.cleanAssessmentDisplayText(cells[indicatorIdx] || "") : inline.indicator) ||
+          defaults.indicator,
+        target:
+          (targetIdx >= 0 ? this.cleanAssessmentDisplayText(cells[targetIdx] || "") : inline.target) ||
+          defaults.target,
+        method:
+          (methodIdx >= 0 ? this.cleanAssessmentDisplayText(cells[methodIdx] || "") : inline.method) ||
+          defaults.method,
+        frequency:
+          (frequencyIdx >= 0 ? this.cleanAssessmentDisplayText(cells[frequencyIdx] || "") : inline.frequency) ||
+          defaults.frequency,
+        rank: rankIdx >= 0 ? Number(cells[rankIdx]) || index + 1 : index + 1,
+      });
+    });
+
+    return rows;
+  }
+
+  private parseMeasurementRowsFromText(text: string): {
+    metric: string;
+    description: string;
+    indicator: string;
+    target: string;
+    method: string;
+    frequency: string;
+    rank: number;
+  }[] {
+    const rows: {
+      metric: string;
+      description: string;
+      indicator: string;
+      target: string;
+      method: string;
+      frequency: string;
+      rank: number;
+    }[] = [];
+
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const bullet = trimmed.match(/^\s*([-*•]|\d+\.)\s+(.+)$/);
+      const content = bullet ? bullet[2] : trimmed;
+      if (!content || /^#{1,3}\s/.test(content)) continue;
+
+      const { metric, description } = this.splitMetricLabelAndDescription(content);
+      const fields = this.extractMetricFields(content);
+      const defaults = this.defaultMetricFields(rows.length);
+      const cleanDescription = description
+        .replace(/target\s*[:=][^—–|]+/gi, "")
+        .replace(/(?:method|tracked via|how)\s*[:=][^—–|]+/gi, "")
+        .replace(/(?:frequency|when)\s*[:=][^—–|]+/gi, "")
+        .replace(/indicator\s*[:=][^—–|]+/gi, "")
+        .trim();
+
+      rows.push({
+        metric,
+        description: cleanDescription,
+        indicator: fields.indicator || defaults.indicator,
+        target: fields.target || defaults.target,
+        method: fields.method || defaults.method,
+        frequency: fields.frequency || defaults.frequency,
+        rank: rows.length + 1,
+      });
+    }
+
+    return rows;
+  }
+
+  private parseMeasurementContent(markdown: string): {
+    approachIntro: string;
+    metrics: {
+      metric: string;
+      description: string;
+      indicator: string;
+      target: string;
+      method: string;
+      frequency: string;
+      rank: number;
+    }[];
+  } {
+    const stripMd = (value: string) =>
+      value.replace(/\*\*/g, "").replace(/__/g, "").replace(/\s+/g, " ").trim();
+
+    let raw = (markdown || "").replace(/\r\n/g, "\n").trim();
+    raw = raw
+      .replace(/^##\s+[^\n]+\n+/, "")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+
+    const subsection = (aliases: string[]) => {
+      const normalizedAliases = aliases.map((a) => a.toLowerCase());
+      const lines = raw.split("\n");
+      let capturing = false;
+      let buffer: string[] = [];
+
+      const flush = () => {
+        const text = buffer.join("\n").trim();
+        buffer = [];
+        capturing = false;
+        return text;
+      };
+
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)$/);
+        if (h3) {
+          if (capturing) return flush();
+          const title = h3[1].trim().replace(/^\*+|\*+$/g, "").toLowerCase();
+          if (normalizedAliases.some((alias) => title === alias || title.includes(alias))) {
+            capturing = true;
+          }
+          continue;
+        }
+        if (capturing) buffer.push(line);
+      }
+      if (capturing) return flush();
+      return "";
+    };
+
+    const approachSection = subsection([
+      "Measurement Approach",
+      "Success Framework",
+      "Approach",
+      "Overview",
+    ]);
+    const metricsSection = subsection([
+      "Success Indicators",
+      "Key Metrics",
+      "Core Metrics",
+      "Metrics",
+      "Measurement Table",
+    ]);
+
+    let approachIntro = "";
+    let metrics: ReturnType<typeof this.parseMeasurementRowsFromText> = [];
+
+    if (approachSection) {
+      const prose = approachSection
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith("|") && !/^\s*([-*•]|\d+\.)\s+/.test(line));
+      approachIntro = stripMd(prose.join(" "));
+    }
+
+    const tableSource = metricsSection || raw;
+    metrics = this.parseMeasurementRowsFromTable(tableSource);
+    if (!metrics.length) {
+      metrics = this.parseMeasurementRowsFromText(metricsSection || raw);
+    }
+
+    if (!approachIntro) {
+      const paragraphs = this.parseExecutiveSummaryParagraphs(raw);
+      if (paragraphs.length) approachIntro = paragraphs[0];
+    }
+
+    return { approachIntro, metrics };
+  }
+
+  private buildMeasurementFromSessions(
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    approachIntro: string;
+    metrics: ReturnType<typeof this.parseMeasurementRowsFromText>;
+  } {
+    const session10 = sessions.find((s) => s.session_number === 10);
+    const source10 = session10 ? this.getSessionSourceText(session10, artifacts) : "";
+    const metrics = this.parseMeasurementRowsFromText(source10).slice(0, 4);
+
+    return {
+      approachIntro:
+        "The CARE Team defined community-centered metrics that track meaningful progress without overburdening participants — balancing quantitative data with qualitative signals of success.",
+      metrics,
+    };
+  }
+
+  private deriveMeasurementContent(
+    markdown: string,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ): {
+    approachIntro: string;
+    metrics: ReturnType<typeof this.parseMeasurementRowsFromText>;
+  } {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const isPlaceholder = !markdown.trim() || markdown.trim() === PLACEHOLDER;
+
+    const parsed = isPlaceholder
+      ? { approachIntro: "", metrics: [] as ReturnType<typeof this.parseMeasurementRowsFromText> }
+      : this.parseMeasurementContent(markdown);
+
+    const sessionFallback = this.buildMeasurementFromSessions(sessions, artifacts);
+
+    let approachIntro = parsed.approachIntro || sessionFallback.approachIntro;
+    let metrics = parsed.metrics.length ? parsed.metrics : sessionFallback.metrics;
+
+    if (!approachIntro) {
+      approachIntro = isPlaceholder
+        ? PLACEHOLDER
+        : "The CARE Team defined community-centered metrics that track meaningful progress without overburdening participants.";
+    }
+
+    if (!metrics.length) {
+      metrics = [
+        {
+          metric: "IMPACT",
+          description: PLACEHOLDER,
+          indicator: "Community-defined signal",
+          target: "TBD",
+          method: "Facilitator logs",
+          frequency: "Ongoing",
+          rank: 1,
+        },
+      ];
+    }
+
+    return {
+      approachIntro: this.fitAssessmentCardText(approachIntro, 520),
+      metrics: metrics.slice(0, 4).map((row, index) => ({
+        ...row,
+        metric: this.fitAssessmentCardText(row.metric, 28),
+        description: this.fitAssessmentCardText(row.description, index === 0 ? 200 : 170),
+        indicator: this.fitAssessmentCardText(row.indicator, 60),
+        target: this.fitAssessmentCardText(row.target, 50),
+        method: this.fitAssessmentCardText(row.method, 60),
+        frequency: this.fitAssessmentCardText(row.frequency, 40),
+        rank: row.rank || index + 1,
+      })),
+    };
+  }
+
+  private getTeamRoleLabel(role: string): string {
+    return role === "care_team_leader" ? "CARE Team Leader" : "CARE Team Member";
+  }
+
+  private deriveTeamContent(
+    teamMembers: TeamMember[],
+    project: ExportProject
+  ): {
+    introText: string;
+    teamRows: {
+      name: string;
+      roleLabel: string;
+      email: string;
+      rank: number;
+    }[];
+    acknowledgmentText: string;
+  } {
+    const orgName = project.organizations?.name?.trim() || "the community";
+    const leaders = teamMembers.filter((m) => m.role === "care_team_leader");
+    const members = teamMembers.filter((m) => m.role !== "care_team_leader");
+    const sorted = [...leaders, ...members];
+
+    if (!sorted.length) {
+      return {
+        introText:
+          "Team roster is not yet available. Invite your CARE Team members from the project page to populate this section.",
+        teamRows: [],
+        acknowledgmentText: "",
+      };
+    }
+
+    const introText = `This strategic plan reflects the collective effort of ${sorted.length} CARE Team member${sorted.length === 1 ? "" : "s"} who partnered with ${orgName} to listen, design, and build community-centered solutions.`;
+
+    const acknowledgmentText =
+      "We extend our deepest gratitude to every team member whose time, expertise, and lived experience shaped this plan.";
+
+    const maxRows = sorted.length > 10 ? 10 : sorted.length;
+
+    return {
+      introText: this.fitAssessmentCardText(introText, 520),
+      teamRows: sorted.slice(0, maxRows).map((member, index) => ({
+        name: this.fitAssessmentCardText(
+          member.full_name?.trim() || member.email.split("@")[0] || "Team Member",
+          36
+        ),
+        roleLabel: this.getTeamRoleLabel(member.role),
+        email: this.fitAssessmentCardText(member.email, 42),
+        rank: index + 1,
+      })),
+      acknowledgmentText: this.fitAssessmentCardText(acknowledgmentText, 220),
+    };
+  }
+
+  private async spRenderTeamPage(
+    teamMembers: TeamMember[],
+    pageLabel: number,
+    project: ExportProject
+  ) {
+    const { introText, teamRows, acknowledgmentText } = this.deriveTeamContent(
+      teamMembers,
+      project
+    );
+
+    const dataUrl = await renderPdfTeamPageToDataUrl({
+      pageNumber: pageLabel,
+      footerDate: formatCoverDate(this.spCover),
+      introText,
+      teamRows,
+      acknowledgmentText: teamRows.length ? acknowledgmentText : undefined,
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private deriveClosingContent(project: ExportProject): {
+    thankYouText: string;
+    livingDocumentText: string;
+    links: { label: string; detail: string }[];
+  } {
+    const orgName = project.organizations?.name?.trim() || "your organization";
+    const orgLoc = project.organizations?.location?.trim() || "";
+
+    const thankYouText = `Thank you for completing the MEASURE CARE Model Strategic Planning process with ${orgName}${orgLoc ? ` (${orgLoc})` : ""}.`;
+
+    const livingDocumentText =
+      "This Strategic Plan reflects the voices and expertise of the community it serves. Use it as a living document — revisit it as conditions change, share it with stakeholders, and let it guide both daily decisions and long-term advocacy.";
+
+    return {
+      thankYouText: this.fitAssessmentCardText(thankYouText, 420),
+      livingDocumentText: this.fitAssessmentCardText(livingDocumentText, 620),
+      links: [
+        { label: "MEASURE", detail: "wemeasure.org" },
+        {
+          label: "CARE Model",
+          detail: "Curriculum & coaching through your CARE Model portal",
+        },
+        {
+          label: "Data Commons",
+          detail: "Share anonymized learnings · 25% community revenue share",
+        },
+      ],
+    };
+  }
+
+  private async spRenderClosingPage(pageLabel: number, project: ExportProject) {
+    const { thankYouText, livingDocumentText, links } = this.deriveClosingContent(project);
+
+    const dataUrl = await renderPdfClosingPageToDataUrl({
+      pageNumber: pageLabel,
+      footerDate: formatCoverDate(this.spCover),
+      thankYouText,
+      livingDocumentText,
+      links,
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private async spRenderMeasurementPage(
+    markdown: string,
+    pageLabel: number,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ) {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const { approachIntro, metrics } = this.deriveMeasurementContent(markdown, sessions, artifacts);
+
+    const dataUrl = await renderPdfMeasurementPageToDataUrl({
+      pageNumber: pageLabel,
+      footerDate: formatCoverDate(this.spCover),
+      approachIntro: approachIntro || PLACEHOLDER,
+      metrics,
+    });
+
+    this.doc.addPage();
+    this.pageNum++;
+    this.doc.addImage(dataUrl, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+  }
+
+  private async spRenderStakeholderAnalysisPage(
+    markdown: string,
+    pageLabel: number,
+    sessions: ExportSession[],
+    artifacts: ExportArtifact[]
+  ) {
+    const PLACEHOLDER = "This section will be developed in upcoming sessions.";
+    const { engagementIntro, stakeholders } = this.deriveStakeholderContent(
+      markdown,
+      sessions,
+      artifacts
+    );
 
     const dataUrl = await renderPdfStakeholderAnalysisPageToDataUrl({
       pageNumber: pageLabel,
-      paragraphs,
-      tableRows,
+      footerDate: formatCoverDate(this.spCover),
+      engagementIntro: engagementIntro || PLACEHOLDER,
+      stakeholders: stakeholders.length
+        ? stakeholders
+        : [{ name: "Stakeholders", role: "Session 4", engagement: PLACEHOLDER }],
+      engagementHighlight: this.deriveStakeholderHighlight(engagementIntro, stakeholders),
     });
 
     this.doc.addPage();
@@ -1897,7 +3911,8 @@ class PdfBuilder {
     project: ExportProject,
     sessions: ExportSession[],
     narrative: string,
-    teamMembers: TeamMember[]
+    teamMembers: TeamMember[],
+    artifacts: ExportArtifact[] = []
   ) {
     let pre = (narrative || "").replace(/\r\n/g, "\n").trim();
     const outerFence = pre.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n?```\s*$/i);
@@ -2027,8 +4042,57 @@ class PdfBuilder {
         );
         continue;
       }
+      if (s.page === 6) {
+        await this.spRenderMissionVisionPage(sectionBody(s.narrativeKey), s.page, project, {
+          solutions: sectionBody("solutions"),
+          problem: sectionBody("problem"),
+          assessment: sectionBody("assessment"),
+        });
+        continue;
+      }
+      if (s.page === 7) {
+        await this.spRenderCommunityAssessmentPage(
+          sectionBody(s.narrativeKey),
+          s.page,
+          sessions,
+          artifacts
+        );
+        continue;
+      }
       if (s.page === 8) {
-        await this.spRenderStakeholderAnalysisPage(sectionBody(s.narrativeKey), s.page);
+        await this.spRenderStakeholderAnalysisPage(
+          sectionBody(s.narrativeKey),
+          s.page,
+          sessions,
+          artifacts
+        );
+        continue;
+      }
+      if (s.page === 9) {
+        await this.spRenderProblemFramingPage(
+          sectionBody(s.narrativeKey),
+          s.page,
+          sessions,
+          artifacts
+        );
+        continue;
+      }
+      if (s.page === 10) {
+        await this.spRenderProposedSolutionsPage(
+          sectionBody(s.narrativeKey),
+          s.page,
+          sessions,
+          artifacts
+        );
+        continue;
+      }
+      if (s.page === 11) {
+        await this.spRenderImplementationRoadmapPage(
+          sectionBody(s.narrativeKey),
+          s.page,
+          sessions,
+          artifacts
+        );
         continue;
       }
       this.spStartSectionPage(s.bannerTitle, s.page);
@@ -2047,51 +4111,13 @@ class PdfBuilder {
     }
 
     // ── PAGE 13: Measurement & Success Indicators ──
-    this.spStartSectionPage("Measurement & Success Indicators", 13);
-    this.spRenderFittedBody(sectionBody("measurement"));
+    await this.spRenderMeasurementPage(sectionBody("measurement"), 13, sessions, artifacts);
 
     // ── PAGE 14: Team & Acknowledgments ──
-    this.spStartSectionPage("Team & Acknowledgments", 14);
-    if (!teamMembers || teamMembers.length === 0) {
-      this.spRenderFittedBody(
-        "Team roster is not yet available. Invite your CARE Team members from the project page to populate this section."
-      );
-    } else {
-      const leaders = teamMembers.filter((m) => m.role === "care_team_leader");
-      const members = teamMembers.filter((m) => m.role !== "care_team_leader");
-      const parts: string[] = [];
-      if (leaders.length) {
-        parts.push(
-          "### CARE Team Leaders\n" +
-            leaders.map((m) => `- **${m.full_name || m.email}** — ${m.email}`).join("\n")
-        );
-      }
-      if (members.length) {
-        parts.push(
-          "### CARE Team Members\n" +
-            members.map((m) => `- **${m.full_name || m.email}** — ${m.email}`).join("\n")
-        );
-      }
-      this.spRenderFittedBody(parts.join("\n\n"));
-    }
+    await this.spRenderTeamPage(teamMembers ?? [], 14, project);
 
     // ── PAGE 15: Closing / Call to Action / Contact ──
-    this.spStartSectionPage("Closing / Call to Action / Contact", 15);
-    const orgName = project.organizations?.name || "your organization";
-    const orgLoc = project.organizations?.location || "";
-    const closing = [
-      `Thank you for completing the MEASURE CARE Model Strategic Planning process with ${orgName}${orgLoc ? ` (${orgLoc})` : ""}.`,
-      "",
-      "This Strategic Plan reflects the voices and expertise of the community it serves. Use it as a living document — revisit it as conditions change, share it with stakeholders, and let it guide both daily decisions and long-term advocacy.",
-      "",
-      "### Stay Connected",
-      "- **MEASURE** — wemeasure.org",
-      "- **CARE Model Curriculum & Coaching** — connect through your CARE Model portal",
-      "- **Community Data Commons** — opt in to share anonymized learnings and receive 25% community revenue share",
-      "",
-      "*Credit. Consent. Compensation.*",
-    ].join("\n");
-    this.spRenderFittedBody(closing);
+    await this.spRenderClosingPage(15, project);
   }
 }
 

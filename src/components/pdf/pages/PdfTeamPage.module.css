@@ -1,0 +1,244 @@
+.page {
+  --navy: #001a57;
+  --gold: #f9d448;
+  --gold-light: #fff8dc;
+  --text-dark: #1a1a1a;
+  --text-muted: #333333;
+  --white: #ffffff;
+  --side-padding: 52px;
+  --header-height: 204px;
+  --footer-height: 72px;
+  --body-max-height: calc(
+    1056px - var(--header-height) - var(--footer-height) - 24px
+  );
+
+  display: flex;
+  flex-direction: column;
+  width: 816px;
+  height: 1056px;
+  overflow: hidden;
+  background: var(--white);
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.pageHeader {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  height: var(--header-height);
+  padding: 0 var(--side-padding) 30px;
+  background: var(--navy);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  max-width: 72%;
+  color: var(--white);
+}
+
+.pageNumber {
+  position: absolute;
+  top: 30px;
+  right: var(--side-padding);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--white);
+  text-transform: uppercase;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 28px var(--side-padding) 0;
+}
+
+.pageBody {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  max-height: var(--body-max-height);
+  overflow: hidden;
+}
+
+.titleBlock {
+  flex: 0 0 auto;
+}
+
+.titleRule {
+  width: 72%;
+  height: 5px;
+  margin-bottom: 14px;
+  background: var(--navy);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+
+.introText {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.tableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.teamTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.teamTable thead th {
+  padding: 12px 8px 14px;
+  font-size: 8.5px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--text-dark);
+  background: var(--gold);
+  vertical-align: middle;
+}
+
+.colName {
+  width: 34%;
+  text-align: left !important;
+  padding-left: 16px !important;
+}
+
+.colRole {
+  width: 24%;
+}
+
+.colContact {
+  width: 32%;
+}
+
+.colRank {
+  width: 10%;
+}
+
+.teamTable tbody td {
+  padding: 12px 8px 14px;
+  font-size: 9px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.rowAlt td {
+  background: var(--gold-light);
+}
+
+.nameCell {
+  padding-left: 16px !important;
+  padding-right: 10px !important;
+  text-align: left;
+}
+
+.memberName {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+
+.roleCell {
+  text-align: center;
+}
+
+.roleBadgeLeader,
+.roleBadgeMember {
+  display: inline-block;
+  padding: 5px 10px 7px;
+  min-height: 22px;
+  font-size: 7.5px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.roleBadgeLeader {
+  color: var(--white);
+  background: var(--navy);
+}
+
+.roleBadgeMember {
+  color: var(--text-dark);
+  background: var(--gold);
+}
+
+.contactCell {
+  text-align: center;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--text-dark);
+  word-break: break-word;
+}
+
+.rankCell {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.acknowledgmentBand {
+  flex: 0 0 auto;
+  padding: 14px 18px 16px;
+  background: linear-gradient(90deg, var(--navy) 0%, #1a3278 100%);
+  border-left: 5px solid var(--gold);
+}
+
+.acknowledgmentText {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--white);
+}
+
+.pageFooter {
+  flex-shrink: 0;
+  padding: 16px 0 20px;
+}
+
+.footerLine {
+  height: 3px;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, var(--navy) 0%, #e8973e 50%, var(--gold) 100%);
+}
+
+.footerDate {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #666666;
+}

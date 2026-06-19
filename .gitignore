@@ -26,3 +26,4 @@ dist-ssr
 # Local reference / design assets (not part of Lovable app)
 docs/
 html-pdf-version/
+LOVABLE_DEPLOYMENT_GUIDE.md

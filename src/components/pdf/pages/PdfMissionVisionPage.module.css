@@ -1,0 +1,180 @@
+.page {
+  --navy: #001a57;
+  --accent: #e8973e;
+  --text-dark: #1a1a1a;
+  --text-muted: #4a4a4a;
+  --white: #ffffff;
+  --side-padding: 52px;
+  --header-height: 204px;
+  --footer-height: 72px;
+  --image-aspect: 1856 / 576;
+  --image-max-height: 220px;
+  --body-max-height: calc(
+    1056px - var(--header-height) - var(--footer-height) - 24px
+  );
+
+  display: flex;
+  flex-direction: column;
+  width: 816px;
+  height: 1056px;
+  overflow: hidden;
+  background: var(--white);
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.pageHeader {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  height: var(--header-height);
+  padding: 0 var(--side-padding) 30px;
+  background: var(--navy);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+  max-width: 72%;
+  color: var(--white);
+}
+
+.pageNumber {
+  position: absolute;
+  top: 30px;
+  right: var(--side-padding);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--white);
+  text-transform: uppercase;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
+  overflow: hidden;
+  padding: 24px var(--side-padding) 0;
+}
+
+.pageBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: var(--body-max-height);
+  overflow: hidden;
+}
+
+.blocks {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.block {
+  margin: 0;
+}
+
+.blockLabel {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.missionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.orgLogo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.missionQuoteWrap {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  border-left: 4px solid var(--accent);
+  background: #f7f8fc;
+}
+
+.orgName {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.missionQuote {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--text-dark);
+}
+
+.bodyText {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.55;
+  color: var(--text-dark);
+  text-align: justify;
+}
+
+.imageBanner {
+  flex: 0 1 auto;
+  width: 100%;
+  max-height: var(--image-max-height);
+  min-height: 120px;
+  aspect-ratio: var(--image-aspect);
+  margin-top: 16px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 26, 87, 0.12);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.pageFooter {
+  flex: 0 0 auto;
+  margin-top: 18px;
+  padding: 0 0 42px;
+  text-align: left;
+}
+
+.footerLine {
+  width: 87%;
+  height: 4px;
+  background: var(--navy);
+  margin: 0 0 12px;
+}
+
+.footerDate {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+  text-transform: uppercase;
+  text-align: left;
+}

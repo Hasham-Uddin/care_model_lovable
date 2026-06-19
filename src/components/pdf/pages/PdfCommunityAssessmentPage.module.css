@@ -32,7 +32,7 @@
 
 .pageTitle {
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   line-height: 1.15;
   max-width: 72%;
@@ -68,9 +68,9 @@
   overflow: hidden;
 }
 
-.iconStrip {
+.phaseStrip {
   flex: 0 0 auto;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .iconPills {
@@ -114,19 +114,19 @@
   box-shadow: 0 4px 14px rgba(0, 26, 87, 0.18);
 }
 
-.pillIcon_partners {
+.pillIcon_community {
   background: var(--navy);
 }
 
-.pillIcon_institutions {
+.pillIcon_population {
   background: #2d4a9e;
 }
 
-.pillIcon_community {
+.pillIcon_insights {
   background: var(--accent);
 }
 
-.pillIcon_influence {
+.pillIcon_history {
   background: #5c6bc0;
 }
 
@@ -144,26 +144,90 @@
   height: 24px;
 }
 
-.introCallout {
-  flex: 0 0 auto;
-  margin-bottom: 14px;
-  padding: 14px 16px;
-  border-radius: 8px;
-  background: #f7f8fc;
-  border-left: 4px solid var(--accent);
+.cardGrid {
+  flex: 1 1 auto;
+  min-height: 340px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 14px;
 }
 
-.introLabel {
-  margin: 0 0 8px;
-  font-size: 9px;
+.card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 16px 14px;
+  border-radius: 8px;
+  background: #f7f8fc;
+  border-top: 4px solid var(--accent);
+  box-shadow: 0 2px 10px rgba(0, 26, 87, 0.06);
+}
+
+.card:nth-child(2) {
+  border-top-color: var(--navy);
+}
+
+.card:nth-child(3) {
+  border-top-color: #2d4a9e;
+}
+
+.card:nth-child(4) {
+  border-top-color: #5c6bc0;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--white);
+  flex-shrink: 0;
+}
+
+.cardIcon_community {
+  background: var(--navy);
+}
+
+.cardIcon_population {
+  background: #2d4a9e;
+}
+
+.cardIcon_insights {
+  background: var(--accent);
+}
+
+.cardIcon_history {
+  background: #5c6bc0;
+}
+
+.cardIcon .iconSvg {
+  width: 18px;
+  height: 18px;
+}
+
+.cardLabel {
+  margin: 0;
+  font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--navy);
 }
 
-.introText {
+.cardText {
   margin: 0;
+  flex: 1;
   font-size: 10.5px;
   font-weight: 600;
   line-height: 1.55;
@@ -171,105 +235,10 @@
   text-align: justify;
 }
 
-.stakeholderGrid {
-  flex: 1 1 auto;
-  min-height: 260px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 1fr;
-  gap: 12px;
-  align-content: start;
-}
-
-.stakeholderCard {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 14px 14px 12px;
-  border-radius: 8px;
-  background: #f7f8fc;
-  border-top: 4px solid var(--navy);
-  box-shadow: 0 2px 10px rgba(0, 26, 87, 0.06);
-}
-
-.stakeholderCard:nth-child(3n + 2) {
-  border-top-color: #2d4a9e;
-}
-
-.stakeholderCard:nth-child(3n) {
-  border-top-color: var(--accent);
-}
-
-.cardTop {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.alignmentBadge {
-  display: inline-block;
-  box-sizing: border-box;
-  align-self: flex-start;
-  min-height: 18px;
-  padding: 5px 10px 8px;
-  border-radius: 3px;
-  font-size: 7.5px;
-  font-weight: 800;
-  line-height: 1.45;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--white);
-  overflow: visible;
-}
-
-.alignment_ally {
-  background: var(--navy);
-}
-
-.alignment_neutral {
-  background: #5c6bc0;
-}
-
-.alignment_mixed {
-  background: var(--accent);
-}
-
-.alignment_opposition {
-  background: #8b3a3a;
-}
-
-.stakeholderName {
-  margin: 0;
-  font-size: 10.5px;
-  font-weight: 800;
-  line-height: 1.35;
-  color: var(--navy);
-}
-
-.stakeholderRole {
-  margin: 0 0 6px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.stakeholderEngagement {
-  margin: 0;
-  flex: 1;
-  font-size: 9.5px;
-  font-weight: 600;
-  line-height: 1.5;
-  color: var(--text-dark);
-  text-align: justify;
-}
-
 .insightBand {
   flex: 0 0 auto;
-  margin-top: 12px;
-  padding: 14px 18px;
+  margin-top: 14px;
+  padding: 16px 20px;
   border-radius: 8px;
   background: var(--navy);
   border-left: 5px solid var(--accent);
@@ -277,7 +246,7 @@
 }
 
 .insightLabel {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: 8.5px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -287,16 +256,16 @@
 
 .insightText {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--white);
 }
 
 .pageFooter {
   flex: 0 0 auto;
   margin-top: auto;
-  padding: 16px 0 42px;
+  padding: 18px 0 42px;
   text-align: left;
 }
 

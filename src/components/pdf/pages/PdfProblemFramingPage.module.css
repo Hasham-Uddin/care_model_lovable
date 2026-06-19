@@ -1,0 +1,228 @@
+.page {
+  --navy: #001a57;
+  --accent: #e8973e;
+  --gold: #f9d448;
+  --text-dark: #1a1a1a;
+  --text-muted: #4a4a4a;
+  --white: #ffffff;
+  --side-padding: 52px;
+  --header-height: 204px;
+  --image-aspect: 2176 / 480;
+
+  display: flex;
+  flex-direction: column;
+  width: 816px;
+  height: 1056px;
+  overflow: hidden;
+  background: var(--white);
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.pageHeader {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  height: var(--header-height);
+  padding: 0 var(--side-padding) 30px;
+  background: var(--navy);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  max-width: 72%;
+  color: var(--white);
+}
+
+.pageNumber {
+  position: absolute;
+  top: 30px;
+  right: var(--side-padding);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--white);
+  text-transform: uppercase;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 20px var(--side-padding) 0;
+}
+
+.imageBanner {
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: var(--image-aspect);
+  max-height: 220px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0, 26, 87, 0.14);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.problemQuote {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 18px 0 16px;
+  padding: 20px 24px 18px 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f7f8fc 0%, #eef1f9 100%);
+  border-left: 5px solid var(--accent);
+}
+
+.quoteMark {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.45;
+}
+
+.quoteText {
+  margin: 0 0 10px;
+  padding-left: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--text-dark);
+  text-align: justify;
+}
+
+.quoteLabel {
+  display: inline-block;
+  box-sizing: border-box;
+  min-height: 22px;
+  padding: 6px 12px 9px;
+  font-size: 8.5px;
+  font-weight: 800;
+  line-height: 1.45;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--navy);
+  background: var(--gold);
+  border-radius: 3px;
+  overflow: visible;
+}
+
+.causalStack {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+.causalRow {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 26, 87, 0.08);
+}
+
+.causalRow:last-child {
+  border-bottom: none;
+}
+
+.causalRail {
+  flex: 0 0 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.causalStep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--white);
+  background: var(--navy);
+  box-shadow: 0 4px 12px rgba(0, 26, 87, 0.2);
+}
+
+.causalRow:nth-child(2) .causalStep {
+  background: #2d4a9e;
+}
+
+.causalRow:nth-child(3) .causalStep {
+  background: var(--accent);
+}
+
+.causalConnector {
+  flex: 1;
+  width: 2px;
+  min-height: 12px;
+  margin: 6px 0;
+  background: linear-gradient(180deg, var(--navy) 0%, var(--accent) 100%);
+  opacity: 0.35;
+  border-radius: 1px;
+}
+
+.causalBody {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0 6px;
+}
+
+.causalLabel {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--navy);
+}
+
+.causalText {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--text-dark);
+  text-align: justify;
+}
+
+.pageFooter {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding: 14px 0 42px;
+  text-align: left;
+}
+
+.footerLine {
+  width: 87%;
+  height: 4px;
+  background: var(--navy);
+  margin: 0 0 12px;
+}
+
+.footerDate {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+  text-transform: uppercase;
+  text-align: left;
+}

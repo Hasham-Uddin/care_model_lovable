@@ -1,0 +1,200 @@
+.page {
+  --navy: #001a57;
+  --gold: #f9d448;
+  --gold-light: #fff8dc;
+  --text-dark: #1a1a1a;
+  --text-muted: #333333;
+  --white: #ffffff;
+  --side-padding: 52px;
+  --header-height: 204px;
+  --footer-height: 72px;
+  --body-max-height: calc(
+    1056px - var(--header-height) - var(--footer-height) - 24px
+  );
+
+  display: flex;
+  flex-direction: column;
+  width: 816px;
+  height: 1056px;
+  overflow: hidden;
+  background: var(--white);
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.pageHeader {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  height: var(--header-height);
+  padding: 0 var(--side-padding) 30px;
+  background: var(--navy);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  max-width: 72%;
+  color: var(--white);
+}
+
+.pageNumber {
+  position: absolute;
+  top: 30px;
+  right: var(--side-padding);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--white);
+  text-transform: uppercase;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 28px var(--side-padding) 0;
+}
+
+.pageBody {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  max-height: var(--body-max-height);
+  overflow: hidden;
+}
+
+.titleBlock {
+  flex: 0 0 auto;
+}
+
+.titleRule {
+  width: 72%;
+  height: 5px;
+  margin-bottom: 14px;
+  background: var(--navy);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+
+.approachText {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.tableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.alignmentTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.alignmentTable thead th {
+  padding: 12px 8px 14px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--text-dark);
+  background: var(--gold);
+  vertical-align: middle;
+}
+
+.colSolution {
+  width: 42%;
+  text-align: left !important;
+  padding-left: 16px !important;
+}
+
+.colRank {
+  width: 8%;
+}
+
+.alignmentTable tbody td {
+  padding: 14px 10px 16px;
+  font-size: 9.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  vertical-align: top;
+}
+
+.rowAlt td {
+  background: var(--gold-light);
+}
+
+.solutionCell {
+  padding-left: 16px !important;
+  padding-right: 12px !important;
+  text-align: left;
+}
+
+.solutionAction {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+
+.solutionDescription {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.ratingCell {
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-dark);
+  vertical-align: middle !important;
+}
+
+.rankCell {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-dark);
+  vertical-align: middle !important;
+}
+
+.pageFooter {
+  flex-shrink: 0;
+  padding: 16px 0 20px;
+}
+
+.footerLine {
+  height: 3px;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, var(--navy) 0%, #e8973e 50%, var(--gold) 100%);
+}
+
+.footerDate {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #666666;
+}

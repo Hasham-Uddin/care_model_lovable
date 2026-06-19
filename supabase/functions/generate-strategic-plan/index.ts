@@ -174,25 +174,87 @@ REQUIRED 8 SECTIONS (use these exact H2 titles, in this exact order):
 2–3 short paragraphs synthesizing Sessions 1, 2, 7, 9. Name the problem, the population most affected, the organization's response, and the intended long-term impact. NEVER leave this section empty.
 
 ## Mission
-One paragraph grounded in the organization's stated mission and Session 1.
+Use exactly these three H3 subsections in this order. Do NOT repeat the organization's stated mission verbatim — it is shown separately from the project profile.
+
+### Our Vision
+One paragraph describing the long-term future this organization is working toward, grounded in Session 1. If Session 1 is thin, infer carefully from the stated mission without fabricating names, places, or statistics.
+
+### Strategic Alignment
+One paragraph explaining how this strategic plan and named project advance the organization's mission. Reference the core problem and intended impact from Session 1.
 
 ## Assessment
-2 short paragraphs synthesizing Phase 1 (Sessions 1–5) — community context, who is affected, historical framing, and baseline data insights from Sessions 2, 3, and 5.
+Use exactly these four H3 subsections in this order. One short paragraph each (~60–90 words), synthesizing Phase 1 (Sessions 1–5).
+
+### Community Landscape
+Geographic, social, and economic context of the community — where the need shows up and what shapes daily life.
+
+### Population Served
+Who is most affected — demographics, community characteristics, and the groups this plan centers.
+
+### Baseline Insights
+Key data and findings from Sessions 2, 3, and 5 — what the team has learned so far.
+
+### Historical Context
+How past conditions, policies, or events shape the present challenge and why timing matters now.
 
 ## Stakeholders
-Lead-in sentence + bulleted list from Session 4. Each bullet: "**Group name** — role and how they are engaged." Max 6 bullets.
+Use exactly these two H3 subsections in this order, synthesizing Session 4.
+
+### Engagement Strategy
+One short paragraph on how the CARE Team will engage stakeholders, build coalitions, and navigate power dynamics.
+
+### Key Stakeholders
+Up to 6 bullets. Each bullet: **Group name** — role, power/alignment (Ally, Neutral, Mixed, or Opposition), and how they will be engaged.
 
 ## Problem
-2 short paragraphs from Session 1 — systemic framing, root causes, who is affected, why now. May include Session 3 historical framing.
+Use exactly these four H3 subsections in this order, synthesizing Sessions 1 and 3.
+
+### Problem Statement
+One paragraph framing the core challenge from the community's perspective — systemic, not deficit-based.
+
+### Root Causes
+One paragraph on underlying causes and contributing factors beneath the surface problem.
+
+### Systemic Drivers
+One paragraph on policies, institutions, and structural forces that sustain the problem.
+
+### Why Now
+One paragraph on urgency, timing, and why action is needed at this moment.
 
 ## Solutions
-Lead-in sentence + bulleted list of the 2–4 core solutions from Sessions 7 + 8. Each bullet: bold action-verb label + one sentence.
+Use exactly these two H3 subsections in this order, synthesizing Sessions 7 + 8.
+
+### Strategic Approach
+One short paragraph explaining Solutions Alignment — how the CARE Team evaluated options against desirability, equity, feasibility, and sustainability.
+
+### Core Solutions
+A markdown table with columns: Solution | Desirability | Equitably | Feasibility | Sustainability
+Include 2–4 rows. In the Solution column, start each entry with a bold action verb (e.g., **ADVOCATE**, **EDUCATE**, **SUPPORT**) followed by one sentence. Use High, Medium, or Low for each rating column.
 
 ## Implementation
-1–2 short paragraphs from Sessions 6 + 11 — community assets that support delivery, timeline, who does what, and the data collection plan logistics.
+Use exactly these four H3 subsections in this order, synthesizing Sessions 6, 8, and 11.
+
+### Roadmap Overview
+One paragraph framing how the CARE Team will move from plan to action — community-led delivery, asset mobilization, and accountability.
+
+### Community Assets
+One paragraph on the people, places, and networks that will power implementation (from Session 6).
+
+### Timeline & Roles
+One paragraph on who does what, key activities, and sequencing (from Sessions 8 + 9).
+
+### Data & Accountability
+One paragraph on data collection, privacy protections, and how the community stays informed (from Session 11).
 
 ## Measurement
-Lead-in sentence + 2–4 bullets from Session 10. Each bullet: "**Metric name** — what is measured, indicator, and target if available."`;
+Use exactly these two H3 subsections in this order, synthesizing Session 10.
+
+### Measurement Approach
+One short paragraph on how the CARE Team chose metrics — community-defined success, feasible collection, and balance of quantitative and qualitative indicators.
+
+### Success Indicators
+A markdown table with columns: Metric | Indicator | Target | Method | Frequency
+Include 2–4 rows. In the Metric column, start each entry with a bold metric name (e.g., **ATTENDANCE**, **READING LEVEL**) followed by what is measured. Use concise values for Indicator, Target, Method, and Frequency.`;
 
     const userPrompt = `Organization: ${orgName}${orgLocation ? ` (${orgLocation})` : ""}
 Stated Mission: ${orgMission || "(not provided)"}
